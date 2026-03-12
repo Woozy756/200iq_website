@@ -1,0 +1,28 @@
+---
+import { getDictionary, normalizeLang, useTranslations } from '../i18n/utils';
+
+interface Props {
+	lang: string;
+}
+
+const lang = normalizeLang(Astro.props.lang);
+const t = useTranslations(lang);
+const dictionary = getDictionary(lang);
+---
+
+<section class="section">
+	<div class="container">
+		<span class="eyebrow">{t('services.eyebrow')}</span>
+		<h2 class="section-title">{t('services.title')}</h2>
+		<div class="card-grid">
+			{
+				dictionary.services.cards.map((card) => (
+					<article class="service-card">
+						<h3>{card.title}</h3>
+						<p>{card.desc}</p>
+					</article>
+				))
+			}
+		</div>
+	</div>
+</section>

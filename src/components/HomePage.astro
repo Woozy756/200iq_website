@@ -1,0 +1,56 @@
+---
+import FooterSection from './FooterSection.astro';
+import IntroSection from './IntroSection.astro';
+import NavMenuIsland from '../islands/NavMenuIsland.jsx';
+import NetworkSection from './NetworkSection.astro';
+import ProcessSection from './ProcessSection.astro';
+import ScrollProgressIsland from '../islands/ScrollProgressIsland.jsx';
+import ServicesSection from './ServicesSection.astro';
+import StatsSection from './StatsSection.astro';
+import TechSection from './TechSection.astro';
+import VisionSection from './VisionSection.astro';
+import { normalizeLang, useTranslations } from '../i18n/utils';
+
+interface Props {
+	lang: string;
+}
+
+const lang = normalizeLang(Astro.props.lang);
+const t = useTranslations(lang);
+
+const navLinks = [
+	{ label: t('navigation.links.vision'), href: '#vision' },
+	{ label: t('navigation.links.process'), href: '#process' },
+	{ label: t('navigation.links.tech'), href: '#tech' },
+	{ label: t('navigation.links.network'), href: '#network' },
+];
+
+const localeLinks = [
+	{ code: 'en', href: '/en/' },
+];
+---
+
+<ScrollProgressIsland client:load />
+<NavMenuIsland
+	client:load
+	brand={t('navigation.brand')}
+	links={navLinks}
+	localeLinks={localeLinks}
+	currentLocale={lang}
+	ctaLabel={t('navigation.cta')}
+	openMenuLabel={t('navigation.openMenu')}
+	closeMenuLabel={t('navigation.closeMenu')}
+	languageLabel={t('navigation.languageLabel')}
+/>
+
+<main>
+	<IntroSection lang={lang} />
+	<ProcessSection lang={lang} />
+	<VisionSection lang={lang} />
+	<ServicesSection lang={lang} />
+	<TechSection lang={lang} />
+	<StatsSection lang={lang} />
+	<NetworkSection lang={lang} />
+</main>
+
+<FooterSection lang={lang} />

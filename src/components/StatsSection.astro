@@ -1,0 +1,23 @@
+---
+import { getDictionary, normalizeLang } from '../i18n/utils';
+
+interface Props {
+	lang: string;
+}
+
+const lang = normalizeLang(Astro.props.lang);
+const dictionary = getDictionary(lang);
+---
+
+<section class="section stats-shell">
+	<div class="container stats-grid">
+		{
+			dictionary.stats.items.map((item) => (
+				<div class="stat">
+					<p class="stat-value">{item.value}</p>
+					<p class="stat-label">{item.label}</p>
+				</div>
+			))
+		}
+	</div>
+</section>

@@ -1,0 +1,57 @@
+---
+import { getDictionary, normalizeLang, useTranslations } from '../i18n/utils';
+
+interface Props {
+	lang: string;
+}
+
+const lang = normalizeLang(Astro.props.lang);
+const t = useTranslations(lang);
+const dictionary = getDictionary(lang);
+---
+
+<footer id="join" class="site-footer">
+	<div class="container">
+		<div class="footer-grid">
+			<div>
+				<h2 class="footer-title">
+					{t('footer.titleStart')} <br /> <span class="accent">{t('footer.titleHighlight')}</span>
+				</h2>
+				<a class="btn btn-primary" href={`/${lang}/`}>{t('footer.cta')}</a>
+			</div>
+			<div class="footer-columns">
+				<div>
+					<span class="footer-column-title">{t('footer.socialTitle')}</span>
+					<ul class="footer-list">
+						{
+							dictionary.footer.socialLinks.map((label) => (
+								<li>
+									<a href="#">{label}</a>
+								</li>
+							))
+						}
+					</ul>
+				</div>
+				<div>
+					<span class="footer-column-title">{t('footer.legalTitle')}</span>
+					<ul class="footer-list">
+						{
+							dictionary.footer.legalLinks.map((label) => (
+								<li>
+									<a href="#">{label}</a>
+								</li>
+							))
+						}
+					</ul>
+				</div>
+			</div>
+		</div>
+		<div class="footer-bottom">
+			<p class="footer-small">{t('footer.copyright')}</p>
+			<div class="footer-inline">
+				<p class="footer-small">{t('footer.builtFor')}</p>
+				<p class="footer-small">{t('footer.status')}</p>
+			</div>
+		</div>
+	</div>
+</footer>

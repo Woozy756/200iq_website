@@ -1,0 +1,25 @@
+
+> pink-parsec@0.0.1 dev
+> astro dev --host 127.0.0.1 --port 4321
+
+[vite] connected.
+[2m22:45:35[22m [34m[types][39m Generated [2m1ms[22m
+[33m[1m22:45:35[22m [WARN] [content][39m Content config not loaded
+[2m22:45:35[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[2m22:45:35[22m [34m[vite][39m Port 4321 is in use, trying another one...
+[42m[1m astro [22m[49m [32mv6.0.4[39m [2mready in[22m 1506 [2mms[22m
+[2m┃[22m Local    [36mhttp://127.0.0.1:4322/[39m
+[2m22:45:35[22m [32mwatching for file changes...[39m
+[2m22:46:36[22m Configuration file updated. Restarting...
+[vite] connected.
+[2m22:46:37[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[2m22:46:38[22m [34m[types][39m Generated [2m288ms[22m
+[2m22:46:38[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[31m[1m22:46:38[22m [ERROR][39m Cannot read properties of undefined (reading 'call')
+  [1mStack trace:[22m
+[2m    at C:/Users/Woozy/Desktop/200IQ website/astro-project/src/i18n/utils.ts
+    [...] See full stack trace in the browser, or rerun with --verbose.[22m
+[2m22:47:55[22m Configuration file removed. Restarting...
+[vite] connected.
+[2m22:47:58[22m [34m[types][39m Generated [2m300ms[22m
+[2m22:47:58[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
