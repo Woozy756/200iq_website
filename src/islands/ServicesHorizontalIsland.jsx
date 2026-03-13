@@ -50,7 +50,9 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 	const containerRef = useRef(null);
 	const [progress, setProgress] = useState(0);
 	const [viewportWidth, setViewportWidth] = useState(1280);
-	const progressRef = useRef(0);
+	const targetProgressRef = useRef(0);
+	const currentProgressRef = useRef(0);
+	const rafIdRef = useRef(0);
 
 	useEffect(() => {
 		const onResize = () => {
@@ -65,43 +67,33 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 	}, []);
 
 	useEffect(() => {
-		let rafId = 0;
-
-		const update = () => {
-			if (!containerRef.current) {
-				return;
-			}
-
+		const readScroll = () => {
+			if (!containerRef.current) return;
 			const rect = containerRef.current.getBoundingClientRect();
 			const span = Math.max(rect.height - window.innerHeight, 1);
-			const raw = -rect.top / span;
-			const next = clamp(raw, 0, 1);
-			if (Math.abs(next - progressRef.current) < 0.0015) {
-				return;
-			}
-			progressRef.current = next;
-			setProgress(next);
+			targetProgressRef.current = clamp(-rect.top / span, 0, 1);
 		};
 
-		const onScroll = () => {
-			if (rafId) {
-				return;
+		const tick = () => {
+			const target = targetProgressRef.current;
+			const current = currentProgressRef.current;
+			const next = current + (target - current) * 0.1;
+			if (Math.abs(next - current) > 0.0002) {
+				currentProgressRef.current = next;
+				setProgress(next);
 			}
-			rafId = window.requestAnimationFrame(() => {
-				rafId = 0;
-				update();
-			});
+			rafIdRef.current = requestAnimationFrame(tick);
 		};
 
-		update();
-		window.addEventListener('scroll', onScroll, { passive: true });
-		window.addEventListener('resize', update);
+		readScroll();
+		window.addEventListener('scroll', readScroll, { passive: true });
+		window.addEventListener('resize', readScroll);
+		rafIdRef.current = requestAnimationFrame(tick);
+
 		return () => {
-			window.removeEventListener('scroll', onScroll);
-			window.removeEventListener('resize', update);
-			if (rafId) {
-				window.cancelAnimationFrame(rafId);
-			}
+			window.removeEventListener('scroll', readScroll);
+			window.removeEventListener('resize', readScroll);
+			cancelAnimationFrame(rafIdRef.current);
 		};
 	}, []);
 
