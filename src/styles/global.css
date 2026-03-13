@@ -300,10 +300,10 @@ main {
 	position: absolute;
 	inset: 0;
 	background:
-		linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-		linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-	background-size: 44px 44px;
-	opacity: 0.3;
+		linear-gradient(to right, rgba(255, 31, 31, 0.3) 1px, transparent 1px),
+		linear-gradient(to bottom, rgba(255, 31, 31, 0.3) 1px, transparent 1px);
+	background-size: 64px 64px;
+	opacity: 0.56;
 	z-index: -1;
 }
 
@@ -311,7 +311,7 @@ main {
 	content: '';
 	position: absolute;
 	inset: 0;
-	background: radial-gradient(circle at 48% 44%, rgba(255, 31, 31, 0.16), transparent 56%);
+	background: radial-gradient(circle at 48% 44%, rgba(255, 31, 31, 0.22), transparent 56%);
 	z-index: -1;
 }
 
@@ -474,10 +474,10 @@ main {
 	position: absolute;
 	inset: 0;
 	background:
-		linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-		linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-	background-size: 100px 100px;
-	opacity: 0.1;
+		linear-gradient(to right, rgba(255, 31, 31, 0.16) 1px, transparent 1px),
+		linear-gradient(to bottom, rgba(255, 31, 31, 0.16) 1px, transparent 1px);
+	background-size: 92px 92px;
+	opacity: 0.22;
 }
 
 .process-mountain-base,
@@ -641,54 +641,7 @@ main {
 	inset: 0;
 	z-index: 0;
 	pointer-events: none;
-	background:
-		linear-gradient(
-			to bottom,
-			rgba(255, 31, 31, var(--svc-wash-a, 0.01)),
-			rgba(255, 31, 31, var(--svc-wash-a, 0.01))
-		),
-		radial-gradient(
-			circle at var(--svc-g1-x, 60%) 52%,
-			rgba(255, 31, 31, var(--svc-g1-a, 0.02)),
-			transparent 54%
-		),
-		radial-gradient(
-			circle at var(--svc-g2-x, 62%) 52%,
-			rgba(255, 31, 31, var(--svc-g2-a, 0.02)),
-			transparent 54%
-		),
-		radial-gradient(
-			circle at var(--svc-g3-x, 58%) 52%,
-			rgba(255, 31, 31, var(--svc-g3-a, 0.02)),
-			transparent 54%
-		),
-		radial-gradient(
-			circle at var(--svc-g4-x, 56%) 52%,
-			rgba(255, 31, 31, var(--svc-g4-a, 0.02)),
-			transparent 54%
-		),
-		linear-gradient(
-			to right,
-			rgba(255, 31, 31, var(--svc-grid-alpha, 0.015)) 1px,
-			transparent 1px
-		),
-		linear-gradient(
-			to bottom,
-			rgba(255, 31, 31, var(--svc-grid-alpha, 0.015)) 1px,
-			transparent 1px
-		),
-		var(--bg);
-	background-size:
-		auto,
-		auto,
-		auto,
-		auto,
-		auto,
-		auto,
-		96px 96px,
-		96px 96px,
-		auto;
-	transition: background 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+	background: var(--bg);
 }
 
 .services-stage {

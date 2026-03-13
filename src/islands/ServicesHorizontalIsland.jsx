@@ -152,43 +152,10 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 		};
 	}, [cards.length, progress, viewportWidth]);
 
-	const backgroundGlowStyle = useMemo(() => {
-		const viewport = Math.max(viewportWidth, 1);
-		const samples = cards.map((_, index) => {
-			const left = layout.positions[index] ?? viewport + 100;
-			const right = left + layout.cardWidth;
-			const overlap = clamp((Math.min(right, viewport) - Math.max(left, 0)) / layout.cardWidth, 0, 1);
-			const centerX = clamp(left + layout.cardWidth / 2, 0, viewport);
-			return {
-				strength: overlap,
-				xPercent: (centerX / viewport) * 100,
-			};
-		});
-		const energy = samples.reduce((sum, item) => sum + item.strength, 0);
-		const softEnergy = clamp(energy / 2.4, 0, 1);
-		const fallbackX = 66 - progress * 20;
-		const getSample = (index) => samples[index] ?? { strength: 0, xPercent: fallbackX };
-		const smooth = (value) => value ** 0.88;
-		const perCardGlow = (sample) => (smooth(sample.strength) * (0.11 + softEnergy * 0.025)).toFixed(3);
-
-		return {
-			'--svc-grid-alpha': (0.014 + softEnergy * 0.006).toFixed(3),
-			'--svc-wash-a': (0.012 + softEnergy * 0.02).toFixed(3),
-			'--svc-g1-x': `${getSample(0).xPercent.toFixed(2)}%`,
-			'--svc-g2-x': `${getSample(1).xPercent.toFixed(2)}%`,
-			'--svc-g3-x': `${getSample(2).xPercent.toFixed(2)}%`,
-			'--svc-g4-x': `${getSample(3).xPercent.toFixed(2)}%`,
-			'--svc-g1-a': perCardGlow(getSample(0)),
-			'--svc-g2-a': perCardGlow(getSample(1)),
-			'--svc-g3-a': perCardGlow(getSample(2)),
-			'--svc-g4-a': perCardGlow(getSample(3)),
-		};
-	}, [cards, layout.cardWidth, layout.positions, progress, viewportWidth]);
-
 	return (
 		<section ref={containerRef} className="services-scroll">
 			<div className="services-sticky">
-				<div className="services-bg" style={backgroundGlowStyle} aria-hidden="true" />
+				<div className="services-bg" aria-hidden="true" />
 				<div className="services-stage" style={{ height: layout.stageHeight }}>
 					{cards.map((card, index) => {
 						const Icon = icons[index] ?? ZapIcon;
