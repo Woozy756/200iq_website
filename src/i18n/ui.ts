@@ -72,19 +72,19 @@ export const ui = {
 			cards: [
 				{
 					title: 'Elite Level Design',
-					desc: 'Bespoke visual systems tailored for premium brands.',
+					desc: "Bespoke visual experiences tailored for the most demanding brands. We don't just build websites; we craft digital masterpieces.",
 				},
 				{
 					title: 'SEO Optimization',
-					desc: 'Clean structure and metadata that support discoverability.',
+					desc: 'Dominating search rankings with precision-engineered metadata and high-performance architecture that Google loves.',
 				},
 				{
 					title: 'Payment Integration',
-					desc: 'Secure and dependable transaction flows.',
+					desc: 'Seamless, secure, and lightning-fast transaction systems integrated directly into your digital ecosystem.',
 				},
 				{
-					title: 'Custom Requests',
-					desc: 'Business-specific features built to your workflow.',
+					title: 'Individual Requests',
+					desc: "Custom-built features and unique functionalities designed specifically for your business's unique digital needs.",
 				},
 			],
 		},
