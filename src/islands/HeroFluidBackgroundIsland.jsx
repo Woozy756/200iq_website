@@ -428,7 +428,7 @@ export default function HeroFluidBackgroundIsland() {
 		if (!context) return undefined;
 
 		const { gl, ext } = context;
-		const host = canvas.closest('.hero') ?? canvas.parentElement;
+		const host = canvas.closest('.hero-stage') ?? canvas.closest('.hero') ?? canvas.parentElement;
 		if (!host) return undefined;
 
 		const vertexShader = compileShader(gl, gl.VERTEX_SHADER, BASE_VERTEX_SHADER);

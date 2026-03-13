@@ -16,7 +16,22 @@ export default function NavMenuIsland({
 
 	useEffect(() => {
 		const handleScroll = () => {
-			setIsScrolled(window.scrollY > 20);
+			const hero = document.querySelector('.hero');
+			if (!hero) {
+				setIsScrolled(window.scrollY > 20);
+				return;
+			}
+
+			const heroTop = hero.offsetTop;
+			const heroTravel = Math.max(hero.offsetHeight - window.innerHeight, 0);
+			const heroReleasePoint = heroTop + heroTravel + 4;
+
+			if (heroTravel === 0) {
+				setIsScrolled(window.scrollY > heroTop + 20);
+				return;
+			}
+
+			setIsScrolled(window.scrollY >= heroReleasePoint);
 		};
 
 		const handleResize = () => {
