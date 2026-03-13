@@ -37,9 +37,16 @@ export default function NavMenuIsland({
 	return (
 		<header className={`nav-shell ${isScrolled ? 'is-scrolled' : ''}`}>
 			<div className="container nav-inner">
-				<a className="brand" href={`/${currentLocale}/`}>
-					<span className="brand-badge">IQ</span>
-					<span>{brand}</span>
+				<a className="brand brand-logo-link" href={`/${currentLocale}/`} aria-label={brand}>
+					<span className="brand-logo-frame">
+						<img
+							className="brand-logo-image"
+							src="/200iq_logo.png"
+							alt={brand}
+							width="2048"
+							height="597"
+						/>
+					</span>
 				</a>
 
 				<nav className="nav-links" aria-label="Primary">
