@@ -71,16 +71,31 @@ const t = useTranslations(lang);
 
 	const splitTargets = Array.from(document.querySelectorAll('.cool-split'));
 	const states = splitTargets.map(splitParagraph);
-	const activeStates = new Set();
 	let frame = 0;
 
-	const paintState = (state) => {
+	const getScrollProgress = (state) => {
 		const hero = state.element.closest('.hero');
-		if (!hero) return;
+		if (!hero) return 0;
 
-		const rect = hero.getBoundingClientRect();
-		const travel = Math.max(hero.offsetHeight - window.innerHeight, 1);
-		const progress = clamp(-rect.top / travel, 0, 1);
+		const stage = state.element.closest('.hero-stage');
+		const stagePosition = stage ? window.getComputedStyle(stage).position : '';
+
+		// Desktop uses sticky stage + long hero travel.
+		if (stagePosition === 'sticky') {
+			const heroRect = hero.getBoundingClientRect();
+			const heroTravel = Math.max(hero.offsetHeight - window.innerHeight, 1);
+			return clamp(-heroRect.top / heroTravel, 0, 1);
+		}
+
+		// Mobile/tablet fallback tracks the paragraph through the viewport.
+		const paragraphRect = state.element.getBoundingClientRect();
+		const start = window.innerHeight * 0.9;
+		const end = window.innerHeight * 0.2;
+		return clamp((start - paragraphRect.top) / Math.max(start - end, 1), 0, 1);
+	};
+
+	const paintState = (state) => {
+		const progress = getScrollProgress(state);
 		const totalChars = Math.max(state.chars.length, 1);
 		const fadeWindow = 0.2;
 		const maxStart = Math.max(1 - fadeWindow, 0);
@@ -97,8 +112,7 @@ const t = useTranslations(lang);
 
 	const update = () => {
 		frame = 0;
-		if (activeStates.size === 0) return;
-		activeStates.forEach((state) => paintState(state));
+		states.forEach((state) => paintState(state));
 	};
 
 	const requestUpdate = () => {
@@ -107,32 +121,10 @@ const t = useTranslations(lang);
 		}
 	};
 
-	const observer = new IntersectionObserver(
-		(entries) => {
-			entries.forEach((entry) => {
-				const state = states.find((item) => item.element === entry.target);
-				if (!state) return;
-
-				if (entry.isIntersecting) {
-					activeStates.add(state);
-				} else {
-					activeStates.delete(state);
-				}
-			});
-
-			requestUpdate();
-		},
-		{
-			rootMargin: '20% 0px 20% 0px',
-			threshold: 0,
-		},
-	);
-
-	states.forEach((state) => {
-		observer.observe(state.element);
-		paintState(state);
-	});
+	states.forEach((state) => paintState(state));
+	requestUpdate();
 
 	window.addEventListener('scroll', requestUpdate, { passive: true });
 	window.addEventListener('resize', requestUpdate);
+	window.addEventListener('orientationchange', requestUpdate);
 </script>

@@ -9,7 +9,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "lint:type-scale": "node scripts/check-type-scale.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^5.0.0",
