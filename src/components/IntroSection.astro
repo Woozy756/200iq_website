@@ -71,27 +71,17 @@ const t = useTranslations(lang);
 
 	const splitTargets = Array.from(document.querySelectorAll('.cool-split'));
 	const states = splitTargets.map(splitParagraph);
+	const stateByElement = new Map(states.map((state) => [state.element, state]));
+	const activeStates = new Set();
 	let frame = 0;
 
 	const getScrollProgress = (state) => {
 		const hero = state.element.closest('.hero');
 		if (!hero) return 0;
 
-		const stage = state.element.closest('.hero-stage');
-		const stagePosition = stage ? window.getComputedStyle(stage).position : '';
-
-		// Desktop uses sticky stage + long hero travel.
-		if (stagePosition === 'sticky') {
-			const heroRect = hero.getBoundingClientRect();
-			const heroTravel = Math.max(hero.offsetHeight - window.innerHeight, 1);
-			return clamp(-heroRect.top / heroTravel, 0, 1);
-		}
-
-		// Mobile/tablet fallback tracks the paragraph through the viewport.
-		const paragraphRect = state.element.getBoundingClientRect();
-		const start = window.innerHeight * 0.9;
-		const end = window.innerHeight * 0.2;
-		return clamp((start - paragraphRect.top) / Math.max(start - end, 1), 0, 1);
+		const heroRect = hero.getBoundingClientRect();
+		const heroTravel = Math.max(hero.offsetHeight - window.innerHeight, 1);
+		return clamp(-heroRect.top / heroTravel, 0, 1);
 	};
 
 	const paintState = (state) => {
@@ -112,7 +102,8 @@ const t = useTranslations(lang);
 
 	const update = () => {
 		frame = 0;
-		states.forEach((state) => paintState(state));
+		if (activeStates.size === 0) return;
+		activeStates.forEach((state) => paintState(state));
 	};
 
 	const requestUpdate = () => {
@@ -121,8 +112,31 @@ const t = useTranslations(lang);
 		}
 	};
 
-	states.forEach((state) => paintState(state));
-	requestUpdate();
+	const observer = new IntersectionObserver(
+		(entries) => {
+			entries.forEach((entry) => {
+				const state = stateByElement.get(entry.target);
+				if (!state) return;
+
+				if (entry.isIntersecting) {
+					activeStates.add(state);
+				} else {
+					activeStates.delete(state);
+				}
+			});
+
+			requestUpdate();
+		},
+		{
+			rootMargin: '20% 0px 20% 0px',
+			threshold: 0,
+		},
+	);
+
+	states.forEach((state) => {
+		observer.observe(state.element);
+		paintState(state);
+	});
 
 	window.addEventListener('scroll', requestUpdate, { passive: true });
 	window.addEventListener('resize', requestUpdate);

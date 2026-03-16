@@ -750,8 +750,8 @@ main {
 	opacity: 0.12;
 }
 
-.process-mountain-base,
-.process-mountain-glow {
+.process-brain-base,
+.process-brain-glow {
 	position: absolute;
 	inset: 0;
 	display: flex;
@@ -760,59 +760,59 @@ main {
 	pointer-events: none;
 }
 
-.process-mountain-base {
-	opacity: 0.14;
+.process-brain-base {
+	opacity: 0.18;
 }
 
-.process-mountain-glow {
+.process-brain-glow {
 	opacity: 1;
 }
 
-.process-svg {
-	width: min(100%, 90rem);
-	height: min(78vh, 44rem);
+.process-brain-svg {
+	width: min(36rem, 72vw);
+	height: min(70vh, 36rem);
 }
 
-.process-path-base {
-	stroke: rgba(255, 255, 255, 0.78);
-	stroke-width: 2;
+.process-brain-path-base {
+	stroke: rgba(255, 255, 255, 0.52);
+	stroke-width: 3;
 	fill: none;
 	stroke-linecap: round;
 	stroke-linejoin: round;
 }
 
-.process-path-glow {
+.process-brain-path-glow {
 	stroke: var(--accent);
 	fill: none;
 	stroke-linecap: round;
 	stroke-linejoin: round;
 }
 
-.process-path-glow-wide {
-	stroke-width: 80;
-	opacity: 0.07;
-	filter: blur(50px);
+.process-brain-path-glow-wide {
+	stroke-width: 20;
+	opacity: 0.08;
+	filter: blur(22px);
 }
 
-.process-path-glow-mid {
-	stroke-width: 40;
-	opacity: 0.2;
-	filter: blur(18px);
+.process-brain-path-glow-mid {
+	stroke-width: 10;
+	opacity: 0.24;
+	filter: blur(9px);
 }
 
-.process-path-glow-core {
-	stroke-width: 18;
-	opacity: 0.45;
-	filter: blur(5px);
+.process-brain-path-glow-core {
+	stroke-width: 5;
+	opacity: 0.5;
+	filter: blur(2px);
 }
 
-.process-path-progress {
+.process-brain-path-progress {
 	stroke: var(--accent);
-	stroke-width: 6;
+	stroke-width: 2.8;
 	fill: none;
 	stroke-linecap: round;
 	stroke-linejoin: round;
-	filter: drop-shadow(0 0 18px rgba(225, 161, 64, 1)) drop-shadow(0 0 6px rgba(239, 207, 160, 0.8));
+	filter: drop-shadow(0 0 18px rgba(225, 161, 64, 1)) drop-shadow(0 0 7px rgba(239, 207, 160, 0.82));
 }
 
 .process-cards {
@@ -1507,12 +1507,13 @@ main {
 	}
 
 	.hero {
-		min-height: auto;
+		min-height: 245vh;
 	}
 
 	.hero-stage {
-		position: relative;
-		height: auto;
+		position: sticky;
+		top: 0;
+		height: 100vh;
 		min-height: 100vh;
 	}
 
