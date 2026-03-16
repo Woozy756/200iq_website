@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import SmoothScroll from '../components/SmoothScroll.astro';
 import { normalizeLang } from '../i18n/utils';
 
 interface Props {
@@ -31,6 +32,7 @@ const activeLang = normalizeLang(lang);
 		<title>{title}</title>
 	</head>
 	<body>
+		<SmoothScroll />
 		<slot />
 	</body>
 </html>

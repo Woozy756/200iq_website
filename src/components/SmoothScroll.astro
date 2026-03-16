@@ -3,49 +3,92 @@
 
 	let lenis;
 	let rafId = 0;
+	let mediaQuery;
 
-	function destroyLenis() {
+	function stopRaf() {
 		if (rafId) {
 			cancelAnimationFrame(rafId);
 			rafId = 0;
 		}
+	}
 
+	function destroyLenis() {
+		stopRaf();
 		if (lenis) {
 			lenis.destroy();
 			lenis = undefined;
 		}
+		delete window.__lenis;
 	}
 
-	function setupLenis() {
-		destroyLenis();
-
-		lenis = new Lenis({
-			smoothWheel: true,
-		});
-
+	function startRaf() {
 		const raf = (time) => {
-			if (lenis) {
-				lenis.raf(time);
-				rafId = requestAnimationFrame(raf);
-			}
+			if (!lenis) return;
+			lenis.raf(time);
+			rafId = requestAnimationFrame(raf);
 		};
 
 		rafId = requestAnimationFrame(raf);
 	}
 
+	function setupLenis() {
+		destroyLenis();
+
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			return;
+		}
+
+		lenis = new Lenis({
+			duration: 1.05,
+			easing: (t) => (t === 1 ? 1 : 1 - 2 ** (-10 * t)),
+			smoothWheel: true,
+			syncTouch: true,
+			gestureOrientation: 'vertical',
+			anchors: true,
+		});
+
+		window.__lenis = lenis;
+		startRaf();
+	}
+
+	function setupReducedMotionListener() {
+		mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		const handleChange = () => setupLenis();
+
+		if (typeof mediaQuery.addEventListener === 'function') {
+			mediaQuery.addEventListener('change', handleChange);
+			return;
+		}
+
+		if (typeof mediaQuery.addListener === 'function') {
+			mediaQuery.addListener(handleChange);
+		}
+	}
+
 	document.addEventListener('astro:before-swap', destroyLenis);
 	document.addEventListener('astro:page-load', setupLenis);
+	window.addEventListener('pageshow', setupLenis);
+	window.addEventListener('beforeunload', destroyLenis);
 
+	setupReducedMotionListener();
 	setupLenis();
 </script>
 
 <style is:global>
-	html.lenis {
-		scroll-behavior: auto !important;
-	}
-
 	html.lenis,
 	html.lenis body {
 		height: auto;
+	}
+
+	html.lenis.lenis-smooth {
+		scroll-behavior: auto !important;
+	}
+
+	html.lenis.lenis-stopped {
+		overflow: hidden;
+	}
+
+	html.lenis.lenis-smooth [data-lenis-prevent] {
+		overscroll-behavior: contain;
 	}
 </style>

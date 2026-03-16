@@ -1,24 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 const defaultPositions = [
-	{ x: '12%', y: '45%' },
-	{ x: '38%', y: '35%' },
-	{ x: '62%', y: '28%' },
-	{ x: '88%', y: '18%' },
+	{ x: '8%', y: '24%' },
+	{ x: '92%', y: '24%' },
+	{ x: '8%', y: '76%' },
+	{ x: '92%', y: '76%' },
 ];
 
 const tabletPositions = [
-	{ x: '27%', y: '82%' },
-	{ x: '73%', y: '63%' },
-	{ x: '27%', y: '44%' },
-	{ x: '73%', y: '26%' },
+	{ x: '25%', y: '14%' },
+	{ x: '75%', y: '14%' },
+	{ x: '25%', y: '86%' },
+	{ x: '75%', y: '86%' },
 ];
 
 const mobilePositions = [
-	{ x: '26%', y: '84%' },
-	{ x: '26%', y: '47%' },
-	{ x: '74%', y: '66%' },
-	{ x: '74%', y: '29%' },
+	{ x: '26%', y: '14%' },
+	{ x: '74%', y: '14%' },
+	{ x: '26%', y: '86%' },
+	{ x: '74%', y: '86%' },
 ];
 
 const brainPaths = [
@@ -39,12 +39,24 @@ function clamp(value, min, max) {
 	return Math.min(max, Math.max(min, value));
 }
 
+function seededNoise(seed) {
+	const value = Math.sin(seed) * 10000;
+	return value - Math.floor(value);
+}
+
 export default function MountainProcessIsland({ steps = [] }) {
 	const containerRef = useRef(null);
-	const [progress, setProgress] = useState(0);
-	const [viewportWidth, setViewportWidth] = useState(1280);
-	const isMobile = viewportWidth <= 720;
-	const isTablet = viewportWidth > 720 && viewportWidth <= 980;
+	const dotsRef = useRef(null);
+	const brainGlowRef = useRef(null);
+	const widePathRefs = useRef([]);
+	const midPathRefs = useRef([]);
+	const corePathRefs = useRef([]);
+	const progressPathRefs = useRef([]);
+	const cardRefs = useRef([]);
+	const targetProgressRef = useRef(0);
+	const currentProgressRef = useRef(0);
+	const rafIdRef = useRef(0);
+
 	const ranges = useMemo(() => {
 		const defaults = [
 			[0, 0.2],
@@ -62,35 +74,96 @@ export default function MountainProcessIsland({ steps = [] }) {
 		});
 	}, [steps]);
 	const particles = useMemo(() => {
-		return Array.from({ length: 30 }, (_, index) => ({
+		return Array.from({ length: 54 }, (_, index) => ({
 			id: index,
-			x: Math.random() * 100,
-			y: Math.random() * 100,
-			size: 1 + Math.random() * 2,
-			duration: 10 + Math.random() * 20,
-			delay: -Math.random() * 18,
-			driftX: Math.random() * 900 - 450,
-			driftY: Math.random() * 520 - 260,
-			opacity: 0.12 + Math.random() * 0.4,
+			x: seededNoise(index * 1.17 + 1) * 100,
+			y: seededNoise(index * 1.31 + 2) * 100,
+			size: 1.6 + seededNoise(index * 1.57 + 3) * 3.2,
+			duration: 9 + seededNoise(index * 1.79 + 4) * 18,
+			delay: -seededNoise(index * 2.03 + 5) * 18,
+			driftX: seededNoise(index * 2.29 + 6) * 720 - 360,
+			driftY: seededNoise(index * 2.41 + 7) * 460 - 230,
+			opacity: 0.26 + seededNoise(index * 2.67 + 8) * 0.62,
 		}));
 	}, []);
 
-	const cardPositions = useMemo(() => {
-		const source = isMobile ? mobilePositions : isTablet ? tabletPositions : defaultPositions;
-		return steps.map((_, index) => source[index] ?? source[source.length - 1]);
-	}, [isMobile, isTablet, steps]);
-
 	useEffect(() => {
-		const updateViewport = () => setViewportWidth(window.innerWidth || 1280);
-		updateViewport();
-		window.addEventListener('resize', updateViewport);
-		return () => {
-			window.removeEventListener('resize', updateViewport);
+		const startTick = () => {
+			if (!rafIdRef.current) {
+				rafIdRef.current = requestAnimationFrame(tick);
+			}
 		};
-	}, []);
 
-	useEffect(() => {
-		const update = () => {
+		const setPathDashoffset = (progress) => {
+			const dashOffset = `${1 - progress}`;
+			const pathGroups = [
+				widePathRefs.current,
+				midPathRefs.current,
+				corePathRefs.current,
+				progressPathRefs.current,
+			];
+
+			for (let groupIndex = 0; groupIndex < pathGroups.length; groupIndex += 1) {
+				const group = pathGroups[groupIndex];
+				for (let index = 0; index < group.length; index += 1) {
+					const node = group[index];
+					if (node) {
+						node.style.strokeDashoffset = dashOffset;
+					}
+				}
+			}
+		};
+
+		const updateCards = (progress, viewportWidth) => {
+			const isMobile = viewportWidth <= 720;
+			const isTablet = viewportWidth > 720 && viewportWidth <= 980;
+			const source = isMobile ? mobilePositions : isTablet ? tabletPositions : defaultPositions;
+
+			for (let index = 0; index < steps.length; index += 1) {
+				const cardNode = cardRefs.current[index];
+				if (!cardNode) continue;
+
+				const [start, end] = ranges[index];
+				const isActive = progress >= start && (progress <= end || index === steps.length - 1);
+				const fadeStart = Math.max(0, start - 0.06);
+				const opacity = clamp((progress - fadeStart) / Math.max(start - fadeStart, 0.01), 0, 1);
+				const shiftBase = isMobile ? 12 : isTablet ? 14 : 20;
+				const position = source[index % source.length];
+				const leftPosition = isMobile || isTablet
+					? position.x
+					: `clamp(8rem, ${position.x}, calc(100% - 8rem))`;
+				const sideDirection = Number.parseFloat(position.x) <= 50 ? -1 : 1;
+				const xShift = sideDirection * (shiftBase - shiftBase * opacity);
+				const yShiftFromTop = -(shiftBase - shiftBase * opacity);
+				const cardTransform = isMobile || isTablet
+					? `translate(-50%, calc(-50% + ${yShiftFromTop}px))`
+					: `translate(calc(-50% + ${xShift}px), -50%)`;
+
+				cardNode.style.left = leftPosition;
+				cardNode.style.top = position.y;
+				cardNode.style.opacity = `${opacity}`;
+				cardNode.style.transform = cardTransform;
+				cardNode.classList.toggle('is-active', isActive);
+			}
+		};
+
+		const renderProgress = (progress) => {
+			const revealVisibility = clamp((progress - 0.01) / 0.06, 0, 1);
+			const viewportWidth = window.innerWidth || 1280;
+
+			if (dotsRef.current) {
+				dotsRef.current.style.setProperty('--dot-visibility', `${revealVisibility}`);
+			}
+
+			if (brainGlowRef.current) {
+				brainGlowRef.current.style.setProperty('--process-reveal-visibility', `${revealVisibility}`);
+			}
+
+			setPathDashoffset(progress);
+			updateCards(progress, viewportWidth);
+		};
+
+		const readTarget = () => {
 			if (!containerRef.current) {
 				return;
 			}
@@ -98,22 +171,46 @@ export default function MountainProcessIsland({ steps = [] }) {
 			const rect = containerRef.current.getBoundingClientRect();
 			const span = Math.max(rect.height - window.innerHeight, 1);
 			const raw = -rect.top / span;
-			setProgress(clamp(raw, 0, 1));
+			targetProgressRef.current = clamp(raw, 0, 1);
+			startTick();
 		};
 
-		update();
-		window.addEventListener('scroll', update, { passive: true });
-		window.addEventListener('resize', update);
-		return () => {
-			window.removeEventListener('scroll', update);
-			window.removeEventListener('resize', update);
+		const tick = () => {
+			rafIdRef.current = 0;
+			const target = targetProgressRef.current;
+			const current = currentProgressRef.current;
+			const next = current + (target - current) * 0.16;
+			const settled = Math.abs(target - next) < 0.0008;
+			const progress = settled ? target : next;
+
+			currentProgressRef.current = progress;
+			renderProgress(progress);
+
+			if (!settled) {
+				startTick();
+			}
 		};
-	}, []);
+
+		readTarget();
+		window.addEventListener('scroll', readTarget, { passive: true });
+		window.addEventListener('resize', readTarget);
+
+		return () => {
+			window.removeEventListener('scroll', readTarget);
+			window.removeEventListener('resize', readTarget);
+			cancelAnimationFrame(rafIdRef.current);
+		};
+	}, [ranges, steps.length]);
 
 	return (
 		<div ref={containerRef} className="process-scroll">
 			<div className="process-stage">
-				<div className="process-dots" aria-hidden="true">
+				<div
+					className="process-dots"
+					aria-hidden="true"
+					ref={dotsRef}
+					style={{ '--dot-visibility': 0 }}
+				>
 					{particles.map((particle) => (
 						<span
 							key={particle.id}
@@ -134,23 +231,31 @@ export default function MountainProcessIsland({ steps = [] }) {
 				</div>
 
 				<div className="process-brain-base" aria-hidden="true">
-					<svg className="process-brain-svg" viewBox="0 0 512 512">
+					<svg className="process-brain-svg process-brain-svg-base" viewBox="0 0 512 512">
 						{brainPaths.map((path, index) => (
 							<path className="process-brain-path-base" d={path} key={`brain-base-${index}`} />
 						))}
 					</svg>
 				</div>
 
-				<div className="process-brain-glow" aria-hidden="true">
-					<svg className="process-brain-svg" viewBox="0 0 512 512">
+				<div
+					className="process-brain-glow"
+					aria-hidden="true"
+					ref={brainGlowRef}
+					style={{ '--process-reveal-visibility': 0 }}
+				>
+					<svg className="process-brain-svg process-brain-svg-glow" viewBox="-96 -96 704 704">
 						{brainPaths.map((path, index) => (
 							<path
 								className="process-brain-path-glow process-brain-path-glow-wide"
 								d={path}
 								key={`brain-wide-${index}`}
+								ref={(node) => {
+									widePathRefs.current[index] = node;
+								}}
 								pathLength="1"
 								strokeDasharray="1"
-								strokeDashoffset={1 - progress}
+								strokeDashoffset="1"
 							/>
 						))}
 						{brainPaths.map((path, index) => (
@@ -158,9 +263,12 @@ export default function MountainProcessIsland({ steps = [] }) {
 								className="process-brain-path-glow process-brain-path-glow-mid"
 								d={path}
 								key={`brain-mid-${index}`}
+								ref={(node) => {
+									midPathRefs.current[index] = node;
+								}}
 								pathLength="1"
 								strokeDasharray="1"
-								strokeDashoffset={1 - progress}
+								strokeDashoffset="1"
 							/>
 						))}
 						{brainPaths.map((path, index) => (
@@ -168,9 +276,12 @@ export default function MountainProcessIsland({ steps = [] }) {
 								className="process-brain-path-glow process-brain-path-glow-core"
 								d={path}
 								key={`brain-core-${index}`}
+								ref={(node) => {
+									corePathRefs.current[index] = node;
+								}}
 								pathLength="1"
 								strokeDasharray="1"
-								strokeDashoffset={1 - progress}
+								strokeDashoffset="1"
 							/>
 						))}
 						{brainPaths.map((path, index) => (
@@ -178,9 +289,12 @@ export default function MountainProcessIsland({ steps = [] }) {
 								className="process-brain-path-progress"
 								d={path}
 								key={`brain-progress-${index}`}
+								ref={(node) => {
+									progressPathRefs.current[index] = node;
+								}}
 								pathLength="1"
 								strokeDasharray="1"
-								strokeDashoffset={1 - progress}
+								strokeDashoffset="1"
 							/>
 						))}
 					</svg>
@@ -188,22 +302,17 @@ export default function MountainProcessIsland({ steps = [] }) {
 
 				<div className="process-cards">
 					{steps.map((step, index) => {
-						const [start, end] = ranges[index];
-						const isActive = progress >= start && (progress <= end || index === steps.length - 1);
-						const fadeStart = Math.max(0, start - 0.06);
-						const opacity = clamp((progress - fadeStart) / Math.max(start - fadeStart, 0.01), 0, 1);
-						const shiftBase = isMobile ? 12 : isTablet ? 14 : 20;
-						const yShift = shiftBase - shiftBase * opacity;
-						const position = cardPositions[index];
-
 						return (
 							<article
-								className={`process-step ${isActive ? 'is-active' : ''}`}
+								className="process-step"
+								ref={(node) => {
+									cardRefs.current[index] = node;
+								}}
 								style={{
-									left: position.x,
-									top: position.y,
-									opacity,
-									transform: `translate(-50%, calc(-50% + ${yShift}px))`,
+									left: '50%',
+									top: '50%',
+									opacity: 0,
+									transform: 'translate(-50%, -50%)',
 								}}
 								key={`${step.title}-${index}`}
 							>
