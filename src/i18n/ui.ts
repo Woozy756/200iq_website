@@ -19,7 +19,7 @@ export const ui = {
 				tech: 'Tech',
 				network: 'Network',
 			},
-			cta: 'Get Started',
+			cta: 'Get started',
 			openMenu: 'Open menu',
 			closeMenu: 'Close menu',
 			languageLabel: 'Language',
@@ -33,6 +33,9 @@ export const ui = {
 			titleEnd: 'done with us.',
 			kicker: 'Precision Engineering  |  Elite Design  |  Absolute Performance',
 			lead: 'You share your goals, constraints, and target outcomes. We engineer a custom digital solution that bridges vision and execution, helping you overcome complexity, unlock opportunities, and achieve meaningful, measurable progress.',
+			readyPrompt: 'Ready to get started?',
+			primaryCta: 'Yes, lets go',
+			secondaryCta: 'No',
 		},
 		process: {
 			eyebrow: 'How We Build',
@@ -89,27 +92,27 @@ export const ui = {
 			],
 		},
 		tech: {
-			eyebrow: 'The Stack',
+			eyebrow: '200iq.eu',
 			title: 'Digital Evolution',
 			body:
-				'We deliver modern front-end architecture for teams that need speed, maintainability, and confidence in production.',
+				'We deliver modern front and back-end architecture for businesses that need to stand out, creating visually striking, interactive experiences with seamless effects that push beyond what typical websites feel like.',
 			metrics: [
 				{
 					value: '100%',
-					label: 'Modern Compliance',
+					label: 'Custom Built',
 				},
 				{
-					value: '100TB',
-					label: 'Throughput',
+					value: '< 30 days',
+					label: 'Delivery Time',
 				},
 			],
 		},
 		stats: {
 			items: [
 				{ label: 'Uptime', value: '99.99%' },
-				{ label: 'Latency', value: '< 2ms' },
-				{ label: 'Nodes', value: '14.2k' },
-				{ label: 'Security', value: 'Lvl 5' },
+				{ label: 'Latency', value: '< 2 ms' },
+				{ label: 'Client Reviews', value: '5/5' },
+				{ label: 'Security', value: 'Maximum' },
 			],
 		},
 		network: {

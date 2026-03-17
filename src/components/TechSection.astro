@@ -11,13 +11,13 @@ const dictionary = getDictionary(lang);
 ---
 
 <section id="tech" class="section tech-shell">
-	<div class="container split-grid">
-		<div class="copy-block">
-			<span class="eyebrow">{t('tech.eyebrow')}</span>
+	<div class="container split-grid tech-grid">
+		<div class="copy-block tech-copy">
+			<span class="eyebrow tech-eyebrow">{t('tech.eyebrow')}</span>
 			<h2 class="section-title">{t('tech.title')}</h2>
 			<p class="muted">{t('tech.body')}</p>
 		</div>
-		<div class="panel" style="padding: 1.2rem;">
+		<div class="panel tech-panel">
 			<div class="metric-grid">
 				{
 					dictionary.tech.metrics.map((metric) => (
@@ -30,4 +30,5 @@ const dictionary = getDictionary(lang);
 			</div>
 		</div>
 	</div>
+	<div class="section-divider is-bottom" aria-hidden="true"></div>
 </section>

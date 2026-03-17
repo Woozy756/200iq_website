@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import { subscribeViewportRaf } from './viewportRaf';
 
 function clamp(value, min, max) {
 	return Math.min(max, Math.max(min, value));
@@ -8,10 +9,36 @@ function easeOutCubic(value) {
 	return 1 - (1 - value) ** 3;
 }
 
-function seededNoise(seed) {
-	const value = Math.sin(seed) * 10000;
-	return value - Math.floor(value);
+function createSeededRng(seed) {
+	let state = seed >>> 0;
+
+	return function next() {
+		state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+		return state / 4294967296;
+	};
 }
+
+function formatFixed(value, digits = 3) {
+	return value.toFixed(digits).replace(/\.?0+$/, '');
+}
+
+function createParticles(count) {
+	const next = createSeededRng(0x2001e);
+
+	return Array.from({ length: count }, (_, index) => ({
+		id: index,
+		x: `${formatFixed(next() * 100)}%`,
+		y: `${formatFixed(next() * 100)}%`,
+		size: `${formatFixed(1.6 + next() * 2.4)}px`,
+		duration: `${formatFixed(10 + next() * 12)}s`,
+		delay: `${formatFixed(-next() * 12)}s`,
+		driftX: `${formatFixed(next() * 420 - 210)}px`,
+		driftY: `${formatFixed(next() * 260 - 130)}px`,
+		opacity: formatFixed(0.2 + next() * 0.36, 4),
+	}));
+}
+
+const PARTICLES = createParticles(28);
 
 function CpuIcon() {
 	return (
@@ -55,20 +82,10 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 	const containerRef = useRef(null);
 	const cardRefs = useRef([]);
 	const glowRefs = useRef([]);
-	const rafIdRef = useRef(0);
-	const particles = useMemo(() => {
-		return Array.from({ length: 42 }, (_, index) => ({
-			id: index,
-			x: seededNoise(index * 1.11 + 1) * 100,
-			y: seededNoise(index * 1.31 + 2) * 100,
-			size: 1.5 + seededNoise(index * 1.71 + 3) * 2.8,
-			duration: 9 + seededNoise(index * 2.03 + 4) * 16,
-			delay: -seededNoise(index * 2.27 + 5) * 14,
-			driftX: seededNoise(index * 2.59 + 6) * 620 - 310,
-			driftY: seededNoise(index * 2.83 + 7) * 380 - 190,
-			opacity: 0.2 + seededNoise(index * 3.01 + 8) * 0.5,
-		}));
-	}, []);
+	const layoutRef = useRef({
+		cardWidth: 0,
+		glowSize: 0,
+	});
 
 	useEffect(() => {
 		const getStatePositions = ({
@@ -154,6 +171,17 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			});
 			const positions = from.map((x, index) => x + (to[index] - x) * alpha);
 			const glowSize = Math.round(cardWidth * 1.5);
+			const layout = layoutRef.current;
+			const cardWidthChanged = layout.cardWidth !== cardWidth;
+			const glowSizeChanged = layout.glowSize !== glowSize;
+
+			if (cardWidthChanged) {
+				layout.cardWidth = cardWidth;
+			}
+
+			if (glowSizeChanged) {
+				layout.glowSize = glowSize;
+			}
 
 			for (let index = 0; index < cards.length; index += 1) {
 				const cardNode = cardRefs.current[index];
@@ -161,9 +189,10 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 				const x = positions[index] ?? viewportWidth + 200;
 
 				if (cardNode) {
-					cardNode.style.width = `${cardWidth}px`;
+					if (cardWidthChanged) {
+						cardNode.style.width = `${cardWidth}px`;
+					}
 					cardNode.style.transform = `translate3d(${x}px, -50%, 0)`;
-					cardNode.style.zIndex = `${index + 1}`;
 				}
 
 				if (glowNode) {
@@ -173,43 +202,32 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 					glowNode.style.left = `${x + cardWidth * 0.5}px`;
 					glowNode.style.opacity = `${visibility}`;
 					glowNode.style.setProperty('--svcx-spot-scale', `${0.84 + visibility * 0.56}`);
-					glowNode.style.setProperty('--svcx-spot-size', `${glowSize}px`);
+					if (glowSizeChanged) {
+						glowNode.style.setProperty('--svcx-spot-size', `${glowSize}px`);
+					}
 				}
 			}
 		};
 
-		const queueFrame = () => {
-			cancelAnimationFrame(rafIdRef.current);
-			rafIdRef.current = requestAnimationFrame(renderFrame);
-		};
-
-		queueFrame();
-		window.addEventListener('scroll', queueFrame, { passive: true });
-		window.addEventListener('resize', queueFrame);
-
-		return () => {
-			window.removeEventListener('scroll', queueFrame);
-			window.removeEventListener('resize', queueFrame);
-			cancelAnimationFrame(rafIdRef.current);
-		};
+		return subscribeViewportRaf(renderFrame);
 	}, [cards.length]);
 
 	return (
 		<section ref={containerRef} className="svcx-scroll">
 			<div className="svcx-sticky">
 				<div className="svcx-dots" aria-hidden="true">
-					{particles.map((particle) => (
+					{PARTICLES.map((particle) => (
 						<span
 							key={particle.id}
 							className="svcx-dot"
 							style={{
-								'--svcx-dot-x': `${particle.x}%`,
-								'--svcx-dot-y': `${particle.y}%`,
-								'--svcx-dot-size': `${particle.size}px`,
-								'--svcx-dot-duration': `${particle.duration}s`,
-								'--svcx-dot-delay': `${particle.delay}s`,
-								'--svcx-dot-drift-x': `${particle.driftX}px`,
-								'--svcx-dot-drift-y': `${particle.driftY}px`,
+								'--svcx-dot-x': particle.x,
+								'--svcx-dot-y': particle.y,
+								'--svcx-dot-size': particle.size,
+								'--svcx-dot-duration': particle.duration,
+								'--svcx-dot-delay': particle.delay,
+								'--svcx-dot-drift-x': particle.driftX,
+								'--svcx-dot-drift-y': particle.driftY,
 								'--svcx-dot-opacity': particle.opacity,
 							}}
 						/>

@@ -12,7 +12,7 @@ const t = useTranslations(lang);
 
 <section class="hero section">
 	<div class="hero-stage">
-		<HeroFluidBackgroundIsland client:visible />
+		<HeroFluidBackgroundIsland client:load />
 
 		<div class="container hero-content">
 			<div class="hero-grid">
@@ -23,9 +23,10 @@ const t = useTranslations(lang);
 							'intro.titleEnd',
 						)}
 					</h1>
+					<p class="hero-prompt">{t('intro.readyPrompt')}</p>
 					<div class="hero-actions">
-						<a href={`/${lang}/contact`} class="btn btn-primary">{t('navigation.cta')}</a>
-						<a href="#tech" class="btn btn-dark">{t('navigation.links.tech')}</a>
+						<a href={`/${lang}/contact`} class="btn btn-primary">{t('intro.primaryCta')}</a>
+						<a href="#tech" class="btn btn-dark hero-secondary-btn">{t('intro.secondaryCta')}</a>
 					</div>
 				</div>
 				<div class="hero-side">
@@ -36,6 +37,7 @@ const t = useTranslations(lang);
 			</div>
 		</div>
 	</div>
+	<div class="section-divider is-bottom" aria-hidden="true"></div>
 </section>
 
 <script is:inline>
@@ -203,6 +205,220 @@ const t = useTranslations(lang);
 		window.addEventListener('orientationchange', handleResize);
 	}
 
-	initCoolSplit();
-	document.addEventListener('astro:page-load', initCoolSplit);
+	function cleanupHeroNoButton() {
+		if (window.__heroNoButtonCleanup) {
+			window.__heroNoButtonCleanup();
+			window.__heroNoButtonCleanup = null;
+		}
+	}
+
+	function initHeroNoButton() {
+		cleanupHeroNoButton();
+
+		if (!window.matchMedia('(pointer: fine)').matches) return;
+
+		const button = document.querySelector('.hero-secondary-btn');
+		if (!button || button.offsetParent === null) return;
+
+		const viewportPadding = 24;
+		const collisionSelector = 'p, h1, h2, h3, h4, h5, h6, span, button, a.btn';
+		const idleReturnDelay = 5000;
+
+		const isVisible = (element) => {
+			if (!(element instanceof HTMLElement)) return false;
+			if (element === button || element.contains(button) || button.contains(element)) return false;
+
+			const style = window.getComputedStyle(element);
+			if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
+				return false;
+			}
+
+			const rect = element.getBoundingClientRect();
+			return rect.width > 0 && rect.height > 0;
+		};
+
+		const overlaps = (a, b) =>
+			a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+
+		const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+		let resetFrame = 0;
+		let returnTimer = 0;
+		let returnTransitionHandler = null;
+		let originRect = null;
+
+		const clearReturnTimer = () => {
+			if (returnTimer) {
+				window.clearTimeout(returnTimer);
+				returnTimer = 0;
+			}
+		};
+
+		const clearReturnTransition = () => {
+			if (returnTransitionHandler) {
+				button.removeEventListener('transitionend', returnTransitionHandler);
+				returnTransitionHandler = null;
+			}
+		};
+
+		const resetButtonPosition = () => {
+			clearReturnTimer();
+			clearReturnTransition();
+
+			if (resetFrame) {
+				window.cancelAnimationFrame(resetFrame);
+			}
+
+			resetFrame = window.requestAnimationFrame(() => {
+				resetFrame = 0;
+				button.classList.remove('is-returning');
+				button.classList.remove('is-floating');
+				delete button.dataset.escapeFixed;
+				originRect = null;
+				button.style.position = '';
+				button.style.left = '';
+				button.style.top = '';
+				button.style.width = '';
+				button.style.height = '';
+				button.style.zIndex = '';
+			});
+		};
+
+		const lockButtonToViewport = () => {
+			if (button.dataset.escapeFixed === 'true') {
+				return button.getBoundingClientRect();
+			}
+
+			const rect = button.getBoundingClientRect();
+			originRect = rect;
+			button.classList.remove('is-returning');
+			button.classList.add('is-floating');
+			button.style.position = 'fixed';
+			button.style.left = `${rect.left}px`;
+			button.style.top = `${rect.top}px`;
+			button.style.width = `${Math.ceil(rect.width)}px`;
+			button.style.height = `${Math.ceil(rect.height)}px`;
+			button.style.zIndex = '90';
+			button.dataset.escapeFixed = 'true';
+			button.getBoundingClientRect();
+			return rect;
+		};
+
+		const scheduleReturnToOrigin = () => {
+			clearReturnTimer();
+
+			returnTimer = window.setTimeout(() => {
+				if (button.dataset.escapeFixed !== 'true' || !originRect) return;
+
+				clearReturnTransition();
+				returnTransitionHandler = (event) => {
+					if (event.propertyName !== 'left') return;
+					clearReturnTransition();
+					resetButtonPosition();
+				};
+
+				button.addEventListener('transitionend', returnTransitionHandler);
+				button.classList.add('is-returning');
+				button.style.left = `${originRect.left}px`;
+				button.style.top = `${originRect.top}px`;
+			}, idleReturnDelay);
+		};
+
+		const getSafeRect = (originRect) => {
+			const buttonRect = originRect || button.getBoundingClientRect();
+			const buttonWidth = buttonRect.width;
+			const buttonHeight = buttonRect.height;
+			const maxLeft = Math.max(viewportPadding, window.innerWidth - buttonWidth - viewportPadding);
+			const maxTop = Math.max(viewportPadding, window.innerHeight - buttonHeight - viewportPadding);
+			const minTravel = Math.min(120, Math.max(56, Math.min(window.innerWidth, window.innerHeight) * 0.07));
+			const localRangeX = Math.min(190, Math.max(96, window.innerWidth * 0.16));
+			const localRangeY = Math.min(140, Math.max(72, window.innerHeight * 0.14));
+
+			let nextRect = null;
+			let hasCollision = true;
+			let attempts = 0;
+
+			while (hasCollision && attempts < 240) {
+				const spread =
+					attempts < 120 ? 1 : attempts < 190 ? 1.65 : 2.3;
+				const deltaX = (Math.random() * 2 - 1) * localRangeX * spread;
+				const deltaY = (Math.random() * 2 - 1) * localRangeY * spread;
+				const travel = Math.hypot(deltaX, deltaY);
+
+				if (travel < minTravel) {
+					attempts += 1;
+					continue;
+				}
+
+				const left = clamp(buttonRect.left + deltaX, viewportPadding, maxLeft);
+				const top = clamp(buttonRect.top + deltaY, viewportPadding, maxTop);
+
+				nextRect = {
+					left,
+					top,
+					right: left + buttonWidth,
+					bottom: top + buttonHeight,
+				};
+
+				hasCollision = Array.from(document.querySelectorAll(collisionSelector))
+					.filter(isVisible)
+					.some((element) => overlaps(nextRect, element.getBoundingClientRect()));
+
+				attempts += 1;
+			}
+
+			return hasCollision ? null : nextRect;
+		};
+
+		const moveButton = () => {
+			if (!window.matchMedia('(pointer: fine)').matches) return;
+
+			const originRect = lockButtonToViewport();
+			const safeRect = getSafeRect(originRect);
+			if (!safeRect) return;
+
+			window.requestAnimationFrame(() => {
+				button.classList.remove('is-returning');
+				button.style.left = `${safeRect.left}px`;
+				button.style.top = `${safeRect.top}px`;
+			});
+
+			scheduleReturnToOrigin();
+		};
+
+		const handleViewportChange = () => {
+			if (button.dataset.escapeFixed === 'true') {
+				resetButtonPosition();
+			}
+		};
+
+		button.addEventListener('mouseenter', moveButton);
+		button.addEventListener('mouseleave', scheduleReturnToOrigin);
+		window.addEventListener('scroll', handleViewportChange, { passive: true });
+		window.addEventListener('resize', handleViewportChange);
+		window.addEventListener('orientationchange', handleViewportChange);
+		window.addEventListener('hashchange', handleViewportChange);
+
+		window.__heroNoButtonCleanup = () => {
+			if (resetFrame) {
+				window.cancelAnimationFrame(resetFrame);
+				resetFrame = 0;
+			}
+			button.removeEventListener('mouseenter', moveButton);
+			button.removeEventListener('mouseleave', scheduleReturnToOrigin);
+			window.removeEventListener('scroll', handleViewportChange);
+			window.removeEventListener('resize', handleViewportChange);
+			window.removeEventListener('orientationchange', handleViewportChange);
+			window.removeEventListener('hashchange', handleViewportChange);
+			resetButtonPosition();
+		};
+	}
+
+	const initHeroSection = () => {
+		initCoolSplit();
+		initHeroNoButton();
+	};
+
+	initHeroSection();
+	document.addEventListener('astro:page-load', initHeroSection);
+	document.addEventListener('astro:before-swap', cleanupHeroNoButton);
 </script>

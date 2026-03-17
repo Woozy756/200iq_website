@@ -1,28 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import { subscribeViewportRaf } from './viewportRaf';
 
 export default function ScrollProgressIsland() {
-	const [progress, setProgress] = useState(0);
+	const barRef = useRef(null);
 
 	useEffect(() => {
 		const update = () => {
+			if (!barRef.current) return;
 			const scrollTop = window.scrollY;
 			const scrollable = document.documentElement.scrollHeight - window.innerHeight;
 			const value = scrollable <= 0 ? 0 : Math.min(1, Math.max(0, scrollTop / scrollable));
-			setProgress(value);
+			barRef.current.style.transform = `scaleX(${value})`;
 		};
 
-		update();
-		window.addEventListener('scroll', update, { passive: true });
-		window.addEventListener('resize', update);
-		return () => {
-			window.removeEventListener('scroll', update);
-			window.removeEventListener('resize', update);
-		};
+		return subscribeViewportRaf(update);
 	}, []);
 
 	return (
 		<div className="progress-wrap" aria-hidden="true">
-			<div className="progress-bar" style={{ transform: `scaleX(${progress})` }} />
+			<div ref={barRef} className="progress-bar" style={{ transform: 'scaleX(0)' }} />
 		</div>
 	);
 }

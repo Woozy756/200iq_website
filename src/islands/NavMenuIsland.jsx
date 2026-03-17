@@ -1,4 +1,34 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { subscribeViewportRaf } from './viewportRaf';
+
+const PENDING_NAV_TARGET_KEY = '__pendingNavTarget';
+const PENDING_NAV_TRANSITION_KEY = '__pendingNavTransition';
+
+function getTargetUrl(href) {
+	if (!href) return null;
+
+	try {
+		return new URL(href, window.location.href);
+	} catch {
+		return null;
+	}
+}
+
+function scrollToTargetId(targetId) {
+	if (!targetId) return false;
+
+	const target = document.getElementById(targetId);
+	if (!target) return false;
+
+	if (typeof window.__jumpToTargetWithTransition === 'function') {
+		window.__jumpToTargetWithTransition(target);
+		return true;
+	}
+
+	const targetY = target.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0);
+	window.scrollTo(0, targetY);
+	return true;
+}
 
 export default function NavMenuIsland({
 	brand,
@@ -13,41 +43,81 @@ export default function NavMenuIsland({
 	const [isOpen, setIsOpen] = useState(false);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const showLocaleLinks = Array.isArray(localeLinks) && localeLinks.length > 1;
+	const boundsRef = useRef({
+		releasePoint: 20,
+		viewportWidth: 0,
+		viewportHeight: 0,
+	});
 
 	useEffect(() => {
-		const handleScroll = () => {
+		const measureBounds = () => {
 			const hero = document.querySelector('.hero:not(.contact-hero)');
 			if (!hero) {
-				setIsScrolled(window.scrollY > 20);
+				boundsRef.current.releasePoint = 20;
 				return;
 			}
 
-			const heroTop = hero.offsetTop;
+			const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+			const rect = hero.getBoundingClientRect();
+			const heroTop = rect.top + scrollY;
 			const heroTravel = Math.max(hero.offsetHeight - window.innerHeight, 0);
-			const heroReleasePoint = heroTop + heroTravel + 4;
-
-			if (heroTravel === 0) {
-				setIsScrolled(window.scrollY > heroTop + 20);
-				return;
-			}
-
-			setIsScrolled(window.scrollY >= heroReleasePoint);
+			boundsRef.current.releasePoint = heroTravel === 0 ? heroTop + 20 : heroTop + heroTravel + 4;
 		};
 
-		const handleResize = () => {
-			if (window.innerWidth > 980) {
+		const update = () => {
+			const viewportWidth = window.innerWidth || 0;
+			const viewportHeight = window.innerHeight || 0;
+			const viewportChanged = (
+				viewportWidth !== boundsRef.current.viewportWidth
+				|| viewportHeight !== boundsRef.current.viewportHeight
+			);
+
+			if (viewportChanged) {
+				boundsRef.current.viewportWidth = viewportWidth;
+				boundsRef.current.viewportHeight = viewportHeight;
+				measureBounds();
+			}
+
+			const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+			const nextScrolled = scrollY >= boundsRef.current.releasePoint;
+			setIsScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
+
+			if (viewportWidth > 980) {
 				setIsOpen(false);
 			}
 		};
 
-		handleScroll();
-		window.addEventListener('scroll', handleScroll, { passive: true });
-		window.addEventListener('resize', handleResize);
-		return () => {
-			window.removeEventListener('scroll', handleScroll);
-			window.removeEventListener('resize', handleResize);
-		};
+		return subscribeViewportRaf(update);
 	}, []);
+
+	const handleSectionLinkClick = (event, link) => {
+		const targetId = link?.targetId;
+		if (!targetId) {
+			setIsOpen(false);
+			return;
+		}
+
+		const url = getTargetUrl(link.href);
+		if (!url || url.origin !== window.location.origin) {
+			setIsOpen(false);
+			return;
+		}
+
+		const isSamePage =
+			url.pathname === window.location.pathname &&
+			url.search === window.location.search;
+
+		if (isSamePage) {
+			event.preventDefault();
+			setIsOpen(false);
+			scrollToTargetId(targetId);
+			return;
+		}
+
+		window.sessionStorage.setItem(PENDING_NAV_TARGET_KEY, targetId);
+		window.sessionStorage.setItem(PENDING_NAV_TRANSITION_KEY, '1');
+		setIsOpen(false);
+	};
 
 	return (
 		<header className={`nav-shell ${isScrolled ? 'is-scrolled' : ''}`}>
@@ -66,7 +136,12 @@ export default function NavMenuIsland({
 
 				<nav className="nav-links" aria-label="Primary">
 					{links.map((link) => (
-						<a className="nav-link" href={link.href} key={link.href}>
+						<a
+							className="nav-link"
+							href={link.href}
+							key={link.targetId || link.href}
+							onClick={(event) => handleSectionLinkClick(event, link)}
+						>
 							{link.label}
 						</a>
 					))}
@@ -106,10 +181,10 @@ export default function NavMenuIsland({
 				<div className="container mobile-panel-inner">
 					{links.map((link) => (
 						<a
-							key={link.href}
+							key={link.targetId || link.href}
 							href={link.href}
 							className="mobile-link"
-							onClick={() => setIsOpen(false)}
+							onClick={(event) => handleSectionLinkClick(event, link)}
 						>
 							{link.label}
 						</a>

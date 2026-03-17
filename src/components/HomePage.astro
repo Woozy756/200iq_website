@@ -18,9 +18,9 @@ const lang = normalizeLang(Astro.props.lang);
 const t = useTranslations(lang);
 
 const navLinks = [
-	{ label: t('navigation.links.process'), href: '#process' },
-	{ label: t('navigation.links.tech'), href: '#tech' },
-	{ label: t('navigation.links.network'), href: '#network' },
+	{ label: t('navigation.links.process'), href: `/${lang}/`, targetId: 'process' },
+	{ label: t('navigation.links.tech'), href: `/${lang}/`, targetId: 'tech' },
+	{ label: t('navigation.links.network'), href: `/${lang}/`, targetId: 'network' },
 ];
 
 const localeLinks = [

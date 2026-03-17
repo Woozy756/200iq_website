@@ -10,4 +10,7 @@ const lang = normalizeLang(Astro.props.lang);
 const dictionary = getDictionary(lang);
 ---
 
-<ServicesHorizontalIsland client:visible cards={dictionary.services.cards} />
+<div class="svcx-shell">
+	<ServicesHorizontalIsland client:load cards={dictionary.services.cards} />
+	<div class="section-divider is-bottom" aria-hidden="true"></div>
+</div>

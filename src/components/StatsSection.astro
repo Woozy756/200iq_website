@@ -10,14 +10,289 @@ const dictionary = getDictionary(lang);
 ---
 
 <section class="section stats-shell">
-	<div class="container stats-grid">
+	<stats-animated-grid class="container stats-grid">
 		{
-			dictionary.stats.items.map((item) => (
-				<div class="stat">
-					<p class="stat-value">{item.value}</p>
+			dictionary.stats.items.map((item, index) => (
+				<div class={`stat stat-${index + 1}`}>
+					<p class="stat-value">
+						<span
+							class="stat-value-text"
+							data-stat-kind={
+								index === 0
+									? 'uptime'
+									: index === 1
+										? 'latency'
+										: index === 2
+											? 'reviews'
+											: 'shuffle'
+							}
+							data-stat-target={item.value}
+						>
+							{item.value}
+						</span>
+						{index === 2 && <span class="stat-star" aria-hidden="true">★</span>}
+					</p>
 					<p class="stat-label">{item.label}</p>
 				</div>
 			))
 		}
-	</div>
+	</stats-animated-grid>
 </section>
+
+<script is:inline>
+	(() => {
+		if (customElements.get('stats-animated-grid')) {
+			return;
+		}
+
+		const RANDOM_POOL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+		const parseTarget = (rawValue) => {
+			const raw = String(rawValue || '').trim();
+			const match = raw.match(/-?\d+(?:[.,]\d+)?/);
+			if (!match) return null;
+
+			const numberText = match[0];
+			const numberIndex = match.index || 0;
+			const prefix = raw.slice(0, numberIndex);
+			const suffix = raw.slice(numberIndex + numberText.length);
+			const decimalSeparator = numberText.includes(',') ? ',' : '.';
+			const decimalPart = numberText.includes('.') ? numberText.split('.')[1] : numberText.split(',')[1];
+			const decimals = decimalPart ? decimalPart.length : 0;
+			const target = Number.parseFloat(numberText.replace(',', '.'));
+
+			if (!Number.isFinite(target)) return null;
+
+			return { raw, target, prefix, suffix, decimals, decimalSeparator };
+		};
+
+		const formatValue = (value, decimals, decimalSeparator) => {
+			const fixed = value.toFixed(decimals);
+			return decimalSeparator === ',' ? fixed.replace('.', ',') : fixed;
+		};
+
+		const easeOut = (t) => 1 - (1 - t) ** 3;
+		const REVEALABLE_CHAR_PATTERN = /[\p{L}\p{N}]/u;
+
+		const getShufflePool = (character) => {
+			if (/\d/u.test(character)) return '0123456789';
+			if (/[A-Z]/.test(character)) return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+			if (/[a-z]/.test(character)) return 'abcdefghijklmnopqrstuvwxyz';
+			return RANDOM_POOL;
+		};
+
+		const isInView = (element) => {
+			const rect = element.getBoundingClientRect();
+			const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+			return rect.top < vh * 0.88 && rect.bottom > vh * 0.12;
+		};
+
+		class StatsAnimatedGridElement extends HTMLElement {
+			constructor() {
+				super();
+				this._triggered = false;
+				this._observer = null;
+				this._rafId = 0;
+				this._delayId = 0;
+				this._checkTrigger = this._checkTrigger.bind(this);
+			}
+
+			connectedCallback() {
+				if (this.dataset.statsAnimated === 'true') return;
+
+				this._uptimeEl = this.querySelector('[data-stat-kind="uptime"]');
+				this._latencyEl = this.querySelector('[data-stat-kind="latency"]');
+				this._reviewsEl = this.querySelector('[data-stat-kind="reviews"]');
+				this._shuffleEl = this.querySelector('[data-stat-kind="shuffle"]');
+
+				if (!this._uptimeEl || !this._latencyEl || !this._reviewsEl || !this._shuffleEl) {
+					return;
+				}
+
+				this._uptimeTarget = this._uptimeEl.dataset.statTarget || this._uptimeEl.textContent || '';
+				this._latencyTarget = this._latencyEl.dataset.statTarget || this._latencyEl.textContent || '';
+				this._reviewsTarget = this._reviewsEl.dataset.statTarget || this._reviewsEl.textContent || '';
+				this._shuffleTarget = this._shuffleEl.dataset.statTarget || this._shuffleEl.textContent || '';
+
+				this._uptimeParsed = parseTarget(this._uptimeTarget);
+				this._latencyParsed = parseTarget(this._latencyTarget);
+				this._reviewsParsed = parseTarget(this._reviewsTarget);
+
+				if (!this._uptimeParsed || !this._latencyParsed || !this._reviewsParsed) {
+					return;
+				}
+
+				this._uptimeEl.textContent = this._uptimeTarget;
+				this._latencyEl.textContent = this._latencyTarget;
+				this._reviewsEl.textContent = this._reviewsTarget;
+				this._shuffleEl.textContent = this._shuffleTarget;
+				this._shuffleChars = Array.from(this._shuffleTarget);
+				this._shuffleRevealOrder = this._shuffleChars
+					.map((character, index) => ({
+						character,
+						index,
+						revealable: REVEALABLE_CHAR_PATTERN.test(character),
+					}))
+					.filter((entry) => entry.revealable)
+					.sort((left, right) => {
+						const center = (this._shuffleChars.length - 1) * 0.5;
+						const leftDistance = Math.abs(left.index - center);
+						const rightDistance = Math.abs(right.index - center);
+						if (leftDistance !== rightDistance) return leftDistance - rightDistance;
+						return left.index - right.index;
+					});
+				this._shuffleRevealRank = new Map(
+					this._shuffleRevealOrder.map((entry, rank) => [entry.index, rank]),
+				);
+
+				if ('IntersectionObserver' in window) {
+					this._observer = new IntersectionObserver(
+						(entries) => {
+							for (const entry of entries) {
+								if (!entry.isIntersecting) continue;
+								this._triggerOnce();
+								break;
+							}
+						},
+						{
+							threshold: 0,
+							rootMargin: '0px 0px -10% 0px',
+						},
+					);
+					this._observer.observe(this);
+				}
+
+				window.addEventListener('scroll', this._checkTrigger, { passive: true });
+				window.addEventListener('resize', this._checkTrigger);
+				window.addEventListener('load', this._checkTrigger);
+				requestAnimationFrame(this._checkTrigger);
+			}
+
+			disconnectedCallback() {
+				this._cleanup();
+			}
+
+			_cleanup() {
+				if (this._observer) {
+					this._observer.disconnect();
+					this._observer = null;
+				}
+				window.removeEventListener('scroll', this._checkTrigger);
+				window.removeEventListener('resize', this._checkTrigger);
+				window.removeEventListener('load', this._checkTrigger);
+				if (this._delayId) {
+					clearTimeout(this._delayId);
+					this._delayId = 0;
+				}
+				if (this._rafId) {
+					cancelAnimationFrame(this._rafId);
+					this._rafId = 0;
+				}
+			}
+
+			_checkTrigger() {
+				const visible = isInView(this);
+				if (this._triggered || this.dataset.statsAnimated === 'true') return;
+				if (!visible) return;
+				this._triggerOnce();
+			}
+
+			_triggerOnce() {
+				if (this._triggered || this.dataset.statsAnimated === 'true') return;
+				this._triggered = true;
+
+				if (this._observer) {
+					this._observer.disconnect();
+					this._observer = null;
+				}
+				window.removeEventListener('scroll', this._checkTrigger);
+				window.removeEventListener('resize', this._checkTrigger);
+				window.removeEventListener('load', this._checkTrigger);
+
+				this._delayId = window.setTimeout(() => {
+					this._delayId = 0;
+					this._startAnimation();
+				}, 140);
+			}
+
+			_startAnimation() {
+				const startedAt = performance.now();
+				const durationMs = 1320;
+
+				const renderNumeric = (element, parsed, startValue, progress) => {
+					const numericValue = startValue + (parsed.target - startValue) * progress;
+					const roundedValue = parsed.decimals === 0 ? Math.round(numericValue) : numericValue;
+					element.textContent = `${parsed.prefix}${formatValue(roundedValue, parsed.decimals, parsed.decimalSeparator)}${parsed.suffix}`;
+				};
+
+				const renderShuffle = (element, targetRaw, progress) => {
+					if (progress >= 1) {
+						element.textContent = targetRaw;
+						return;
+					}
+
+					const revealableCount = this._shuffleRevealOrder.length;
+					const revealedCount = Math.floor(revealableCount * Math.min(1, progress * 1.08));
+					const phase = Math.floor(progress * 18);
+					let nextText = '';
+
+					for (let index = 0; index < this._shuffleChars.length; index += 1) {
+						const character = this._shuffleChars[index];
+
+						if (character === ' ') {
+							nextText += ' ';
+							continue;
+						}
+
+						if (!REVEALABLE_CHAR_PATTERN.test(character)) {
+							nextText += character;
+							continue;
+						}
+
+						const revealRank = this._shuffleRevealRank.get(index);
+						if (revealRank < revealedCount) {
+							nextText += character;
+							continue;
+						}
+
+						const pool = getShufflePool(character);
+						const glyphIndex = (index * 7 + phase * 11 + targetRaw.length * 3) % pool.length;
+						nextText += pool[glyphIndex];
+					}
+
+					element.textContent = nextText;
+				};
+
+				const finish = () => {
+					this._uptimeEl.textContent = this._uptimeTarget;
+					this._latencyEl.textContent = this._latencyTarget;
+					this._reviewsEl.textContent = this._reviewsTarget;
+					this._shuffleEl.textContent = this._shuffleTarget;
+					this.dataset.statsAnimated = 'true';
+					this._rafId = 0;
+				};
+
+				const tick = (time) => {
+					const progress = Math.min((time - startedAt) / durationMs, 1);
+					const eased = easeOut(progress);
+
+					renderNumeric(this._uptimeEl, this._uptimeParsed, 0, eased);
+					renderNumeric(this._latencyEl, this._latencyParsed, 50, eased);
+					renderNumeric(this._reviewsEl, this._reviewsParsed, 0, eased);
+					renderShuffle(this._shuffleEl, this._shuffleTarget, eased);
+
+					if (progress < 1) {
+						this._rafId = requestAnimationFrame(tick);
+						return;
+					}
+
+					finish();
+				};
+
+				this._rafId = requestAnimationFrame(tick);
+			}
+		}
+
+		customElements.define('stats-animated-grid', StatsAnimatedGridElement);
+	})();
+</script>

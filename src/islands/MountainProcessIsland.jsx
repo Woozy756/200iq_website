@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { subscribeViewportRaf } from './viewportRaf';
 
 const defaultPositions = [
 	{ x: '8%', y: '24%' },
@@ -43,6 +44,8 @@ function seededNoise(seed) {
 	const value = Math.sin(seed) * 10000;
 	return value - Math.floor(value);
 }
+
+const PROCESS_SNAP_KEY = '__forceProcessSnap';
 
 export default function MountainProcessIsland({ steps = [] }) {
 	const containerRef = useRef(null);
@@ -120,6 +123,8 @@ export default function MountainProcessIsland({ steps = [] }) {
 		};
 
 		const getScrollY = () => window.scrollY || document.documentElement.scrollTop || 0;
+		let viewportWidth = 0;
+		let viewportHeight = 0;
 
 		const startTick = () => {
 			if (!rafIdRef.current) {
@@ -257,6 +262,15 @@ export default function MountainProcessIsland({ steps = [] }) {
 			boundsRef.current = { start, span };
 		};
 
+		const shouldSnapToProgress = () => {
+			if (typeof window === 'undefined' || !window[PROCESS_SNAP_KEY]) {
+				return false;
+			}
+
+			delete window[PROCESS_SNAP_KEY];
+			return true;
+		};
+
 		const readTarget = () => {
 			const scrollY = getScrollY();
 			const { start, span } = boundsRef.current;
@@ -264,6 +278,17 @@ export default function MountainProcessIsland({ steps = [] }) {
 			const progressGain = getProgressGain(viewportWidth);
 			const raw = ((scrollY - start) / span) * progressGain;
 			const nextTarget = clamp(raw, 0, 1);
+
+			if (shouldSnapToProgress()) {
+				targetProgressRef.current = nextTarget;
+				currentProgressRef.current = nextTarget;
+				renderCacheRef.current.lastRenderedProgress = nextTarget;
+				renderProgress(nextTarget);
+				cancelAnimationFrame(rafIdRef.current);
+				rafIdRef.current = 0;
+				return;
+			}
+
 			if (Math.abs(nextTarget - targetProgressRef.current) < 0.0005) {
 				return;
 			}
@@ -295,24 +320,23 @@ export default function MountainProcessIsland({ steps = [] }) {
 			}
 		};
 
-		const handleResize = () => {
-			cardLayoutRef.current = { mode: '', entries: [] };
-			measureBounds();
+		const handleViewport = () => {
+			const nextWidth = window.innerWidth || 0;
+			const nextHeight = window.innerHeight || 0;
+			const viewportChanged = nextWidth !== viewportWidth || nextHeight !== viewportHeight;
+			if (viewportChanged) {
+				viewportWidth = nextWidth;
+				viewportHeight = nextHeight;
+				cardLayoutRef.current = { mode: '', entries: [] };
+				measureBounds();
+			}
 			readTarget();
 		};
 
-		measureBounds();
-		readTarget();
-		window.addEventListener('scroll', readTarget, { passive: true });
-		window.addEventListener('resize', handleResize);
-		window.addEventListener('orientationchange', handleResize);
-		window.addEventListener('load', handleResize);
+		const unsubscribe = subscribeViewportRaf(handleViewport);
 
 		return () => {
-			window.removeEventListener('scroll', readTarget);
-			window.removeEventListener('resize', handleResize);
-			window.removeEventListener('orientationchange', handleResize);
-			window.removeEventListener('load', handleResize);
+			unsubscribe();
 			cancelAnimationFrame(rafIdRef.current);
 		};
 	}, [ranges, steps.length]);
