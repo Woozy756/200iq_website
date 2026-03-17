@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import SmoothScroll from '../components/SmoothScroll.astro';
 import { normalizeLang } from '../i18n/utils';
+import { ClientRouter } from 'astro:transitions';
 
 interface Props {
 	lang: string;
@@ -30,9 +31,31 @@ const activeLang = normalizeLang(lang);
 			rel="stylesheet"
 		/>
 		<title>{title}</title>
+		<ClientRouter />
 	</head>
 	<body>
 		<SmoothScroll />
 		<slot />
 	</body>
 </html>
+
+<style is:global>
+	/* ── View Transition: Premium Crossfade ── */
+	::view-transition-old(root) {
+		animation: vt-fade-out 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+	}
+
+	::view-transition-new(root) {
+		animation: vt-fade-in 0.5s cubic-bezier(0, 0, 0.2, 1) forwards;
+	}
+
+	@keyframes vt-fade-out {
+		from { opacity: 1; transform: scale(1); }
+		to { opacity: 0; transform: scale(0.98); }
+	}
+
+	@keyframes vt-fade-in {
+		from { opacity: 0; transform: translateY(20px) scale(1.01); }
+		to { opacity: 1; transform: translateY(0) scale(1); }
+	}
+</style>
