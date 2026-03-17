@@ -29,7 +29,9 @@ const t = useTranslations(lang);
 					</div>
 				</div>
 				<div class="hero-side">
-					<p class="hero-lead cool-split">{t('intro.lead')}</p>
+					<div class="hero-side-viewport">
+						<p class="hero-lead cool-split">{t('intro.lead')}</p>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -66,9 +68,21 @@ const t = useTranslations(lang);
 
 			element.appendChild(fragment);
 			element.dataset.splitDone = 'true';
+			
+			// Cache character Y-positions relative to the paragraph
+			const cachePositions = () => {
+				chars.forEach((char) => {
+					char.dataset.y = char.offsetTop;
+				});
+			};
+			
+			// Schedule initial caching so styles render first
+			requestAnimationFrame(cachePositions);
+			
 			return {
 				element,
 				chars,
+				cachePositions,
 			};
 		};
 
@@ -91,15 +105,51 @@ const t = useTranslations(lang);
 
 		const paintState = (state) => {
 			const progress = getScrollProgress(state);
-			const totalChars = Math.max(state.chars.length, 1);
-			const fadeWindow = 0.2;
-			const maxStart = Math.max(1 - fadeWindow, 0);
-			const lastIndex = Math.max(totalChars - 1, 1);
+			const p = state.element;
+			const viewport = p.parentElement; // .hero-side-viewport
+			
+			// 1. Calculate scroll range
+			// Text scrolls up just enough so the bottom line stays within the viewport.
+			const maxTranslate = Math.max(0, p.offsetHeight - viewport.offsetHeight + (viewport.offsetHeight * 0.15));
+			const canScroll = maxTranslate > 0;
+			
+			// 2. Calculate active reveal wave
+			// The zone height across which characters transition from muted to gold.
+			const fadeZone = Math.min(120, viewport.offsetHeight * 0.25);
 
-			state.chars.forEach((char, index) => {
-				const charStart = (index / lastIndex) * maxStart;
-				const charEnd = charStart + fadeWindow;
-				const rawReveal = clamp((progress - charStart) / Math.max(charEnd - charStart, 0.0001), 0, 1);
+			// The wave starts above the paragraph and sweeps to the bottom.
+			const waveCharY = (progress * (p.offsetHeight + fadeZone * 2)) - fadeZone;
+			
+			// 3. Apply scroll transform (delayed)
+			// Don't start physically scrolling the block until the light-up wave reaches the target threshold
+			const middleOffset = viewport.offsetHeight * 0.4; // Start scrolling when wave is ~40% down the viewport
+			const scrollProgress = clamp((waveCharY - middleOffset) / Math.max(0.001, p.offsetHeight - middleOffset), 0, 1);
+			const translateY = canScroll ? scrollProgress * maxTranslate : 0;
+			p.style.transform = `translate3d(0, ${-translateY}px, 0)`;
+
+			// 4. Adjust dynamic CSS masks for soft fades
+			// Top mask fades away as soon as you scroll, allowing the 'disappearing' fade effect.
+			// Re-use physical scrollProgress so the top only masks exactly as text slides under it.
+			const topOpacity = clamp(1 - (scrollProgress * 15), 0, 1);
+			viewport.style.setProperty('--mask-top', topOpacity.toFixed(3));
+			
+			// Bottom mask only fades off if we actually overflowed, and only near the very bottom.
+			if (canScroll) {
+				// Base this mostly on overall progress so we can see the bottom text as it finishes
+				const bottomOpacity = clamp((1 - progress) * 8, 0, 1);
+				viewport.style.setProperty('--mask-bottom', bottomOpacity.toFixed(3));
+			} else {
+				viewport.style.setProperty('--mask-bottom', '1');
+			}
+
+			state.chars.forEach((char) => {
+				const charY = parseFloat(char.dataset.y || 0);
+				
+				// Calculate distance of this character from the sweep wave.
+				const distance = waveCharY - charY; 
+				
+				// Normalize to roughly 0 (muted) or 1 (gold) based on distance
+				const rawReveal = clamp((distance + fadeZone) / (fadeZone * 2), 0, 1);
 				const easedReveal = rawReveal * rawReveal * (3 - 2 * rawReveal);
 				char.style.setProperty('--reveal', easedReveal.toFixed(3));
 			});
@@ -143,9 +193,14 @@ const t = useTranslations(lang);
 			paintState(state);
 		});
 
+		const handleResize = () => {
+			states.forEach(state => state.cachePositions());
+			requestUpdate();
+		};
+
 		window.addEventListener('scroll', requestUpdate, { passive: true });
-		window.addEventListener('resize', requestUpdate);
-		window.addEventListener('orientationchange', requestUpdate);
+		window.addEventListener('resize', handleResize);
+		window.addEventListener('orientationchange', handleResize);
 	}
 
 	initCoolSplit();

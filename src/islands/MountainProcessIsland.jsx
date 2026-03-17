@@ -56,6 +56,15 @@ export default function MountainProcessIsland({ steps = [] }) {
 	const targetProgressRef = useRef(0);
 	const currentProgressRef = useRef(0);
 	const rafIdRef = useRef(0);
+	const boundsRef = useRef({ start: 0, span: 1 });
+	const cardLayoutRef = useRef({ mode: '', entries: [] });
+	const renderCacheRef = useRef({
+		coreDashOffset: '',
+		glowDashOffset: '',
+		revealVisibility: '',
+		cardState: [],
+		lastRenderedProgress: -1,
+	});
 
 	const ranges = useMemo(() => {
 		const defaults = [
@@ -88,90 +97,177 @@ export default function MountainProcessIsland({ steps = [] }) {
 	}, []);
 
 	useEffect(() => {
+		cardLayoutRef.current = { mode: '', entries: [] };
+		renderCacheRef.current = {
+			coreDashOffset: '',
+			glowDashOffset: '',
+			revealVisibility: '',
+			cardState: [],
+			lastRenderedProgress: -1,
+		};
+
+		const getViewportMode = (viewportWidth) => {
+			if (viewportWidth <= 720) return 'mobile';
+			if (viewportWidth <= 980) return 'tablet';
+			return 'desktop';
+		};
+
+		const getProgressGain = (viewportWidth) => {
+			const mode = getViewportMode(viewportWidth);
+			if (mode === 'desktop') return 1.1;
+			if (mode === 'tablet') return 1.02;
+			return 0.96;
+		};
+
+		const getScrollY = () => window.scrollY || document.documentElement.scrollTop || 0;
+
 		const startTick = () => {
 			if (!rafIdRef.current) {
 				rafIdRef.current = requestAnimationFrame(tick);
 			}
 		};
 
-		const setPathDashoffset = (progress) => {
-			const dashOffset = `${1 - progress}`;
-			const pathGroups = [
-				widePathRefs.current,
-				midPathRefs.current,
-				corePathRefs.current,
-				progressPathRefs.current,
-			];
-
-			for (let groupIndex = 0; groupIndex < pathGroups.length; groupIndex += 1) {
-				const group = pathGroups[groupIndex];
-				for (let index = 0; index < group.length; index += 1) {
-					const node = group[index];
-					if (node) {
-						node.style.strokeDashoffset = dashOffset;
-					}
+		const applyDashOffset = (group, dashOffset) => {
+			for (let index = 0; index < group.length; index += 1) {
+				const node = group[index];
+				if (node) {
+					node.style.strokeDashoffset = dashOffset;
 				}
 			}
 		};
 
+		const setPathDashoffset = (progress, viewportWidth) => {
+			const isDesktop = viewportWidth > 980;
+			const coreDashOffset = `${(1 - progress).toFixed(3)}`;
+			const glowDashOffset = `${(1 - progress).toFixed(isDesktop ? 2 : 3)}`;
+
+			if (renderCacheRef.current.coreDashOffset !== coreDashOffset) {
+				renderCacheRef.current.coreDashOffset = coreDashOffset;
+				applyDashOffset(corePathRefs.current, coreDashOffset);
+				applyDashOffset(progressPathRefs.current, coreDashOffset);
+			}
+
+			if (renderCacheRef.current.glowDashOffset !== glowDashOffset) {
+				renderCacheRef.current.glowDashOffset = glowDashOffset;
+				applyDashOffset(widePathRefs.current, glowDashOffset);
+				applyDashOffset(midPathRefs.current, glowDashOffset);
+			}
+		};
+
+		const getCardLayout = (viewportWidth) => {
+			const mode = getViewportMode(viewportWidth);
+			const cached = cardLayoutRef.current;
+			if (cached.mode === mode && cached.entries.length === steps.length) {
+				return cached;
+			}
+
+			const source = mode === 'mobile' ? mobilePositions : mode === 'tablet' ? tabletPositions : defaultPositions;
+			const entries = steps.map((_, index) => {
+				const position = source[index % source.length];
+				const sideDirection = Number.parseFloat(position.x) <= 50 ? -1 : 1;
+				return {
+					left: mode === 'desktop' ? `clamp(8rem, ${position.x}, calc(100% - 8rem))` : position.x,
+					top: position.y,
+					sideDirection,
+				};
+			});
+
+			cardLayoutRef.current = { mode, entries };
+			return cardLayoutRef.current;
+		};
+
 		const updateCards = (progress, viewportWidth) => {
-			const isMobile = viewportWidth <= 720;
-			const isTablet = viewportWidth > 720 && viewportWidth <= 980;
-			const source = isMobile ? mobilePositions : isTablet ? tabletPositions : defaultPositions;
+			const { mode, entries } = getCardLayout(viewportWidth);
+			const isMobile = mode === 'mobile';
+			const isTablet = mode === 'tablet';
+			const shiftBase = isMobile ? 12 : isTablet ? 14 : 20;
 
 			for (let index = 0; index < steps.length; index += 1) {
 				const cardNode = cardRefs.current[index];
 				if (!cardNode) continue;
+				const cardState = renderCacheRef.current.cardState[index] || {};
 
 				const [start, end] = ranges[index];
 				const isActive = progress >= start && (progress <= end || index === steps.length - 1);
 				const fadeStart = Math.max(0, start - 0.06);
 				const opacity = clamp((progress - fadeStart) / Math.max(start - fadeStart, 0.01), 0, 1);
-				const shiftBase = isMobile ? 12 : isTablet ? 14 : 20;
-				const position = source[index % source.length];
-				const leftPosition = isMobile || isTablet
-					? position.x
-					: `clamp(8rem, ${position.x}, calc(100% - 8rem))`;
-				const sideDirection = Number.parseFloat(position.x) <= 50 ? -1 : 1;
+				const opacityValue = opacity.toFixed(3);
+				const position = entries[index];
+				const leftPosition = position.left;
+				const topPosition = position.top;
+				const sideDirection = position.sideDirection;
 				const xShift = sideDirection * (shiftBase - shiftBase * opacity);
 				const yShiftFromTop = -(shiftBase - shiftBase * opacity);
 				const cardTransform = isMobile || isTablet
-					? `translate(-50%, calc(-50% + ${yShiftFromTop}px))`
-					: `translate(calc(-50% + ${xShift}px), -50%)`;
+					? `translate3d(-50%, calc(-50% + ${yShiftFromTop.toFixed(2)}px), 0)`
+					: `translate3d(calc(-50% + ${xShift.toFixed(2)}px), -50%, 0)`;
 
-				cardNode.style.left = leftPosition;
-				cardNode.style.top = position.y;
-				cardNode.style.opacity = `${opacity}`;
-				cardNode.style.transform = cardTransform;
-				cardNode.classList.toggle('is-active', isActive);
+				if (cardState.left !== leftPosition) {
+					cardNode.style.left = leftPosition;
+					cardState.left = leftPosition;
+				}
+				if (cardState.top !== topPosition) {
+					cardNode.style.top = topPosition;
+					cardState.top = topPosition;
+				}
+				if (cardState.opacity !== opacityValue) {
+					cardNode.style.opacity = opacityValue;
+					cardState.opacity = opacityValue;
+				}
+				if (cardState.transform !== cardTransform) {
+					cardNode.style.transform = cardTransform;
+					cardState.transform = cardTransform;
+				}
+				if (cardState.isActive !== isActive) {
+					cardNode.classList.toggle('is-active', isActive);
+					cardState.isActive = isActive;
+				}
+
+				renderCacheRef.current.cardState[index] = cardState;
 			}
 		};
 
 		const renderProgress = (progress) => {
 			const revealVisibility = clamp((progress - 0.01) / 0.06, 0, 1);
+			const revealValue = revealVisibility.toFixed(3);
 			const viewportWidth = window.innerWidth || 1280;
 
-			if (dotsRef.current) {
-				dotsRef.current.style.setProperty('--dot-visibility', `${revealVisibility}`);
+			if (renderCacheRef.current.revealVisibility !== revealValue) {
+				renderCacheRef.current.revealVisibility = revealValue;
+				if (dotsRef.current) {
+					dotsRef.current.style.setProperty('--dot-visibility', revealValue);
+				}
+				if (brainGlowRef.current) {
+					brainGlowRef.current.style.setProperty('--process-reveal-visibility', revealValue);
+				}
 			}
 
-			if (brainGlowRef.current) {
-				brainGlowRef.current.style.setProperty('--process-reveal-visibility', `${revealVisibility}`);
-			}
-
-			setPathDashoffset(progress);
+			setPathDashoffset(progress, viewportWidth);
 			updateCards(progress, viewportWidth);
 		};
 
-		const readTarget = () => {
+		const measureBounds = () => {
 			if (!containerRef.current) {
 				return;
 			}
 
 			const rect = containerRef.current.getBoundingClientRect();
-			const span = Math.max(rect.height - window.innerHeight, 1);
-			const raw = -rect.top / span;
-			targetProgressRef.current = clamp(raw, 0, 1);
+			const start = rect.top + getScrollY();
+			const span = Math.max(containerRef.current.offsetHeight - window.innerHeight, 1);
+			boundsRef.current = { start, span };
+		};
+
+		const readTarget = () => {
+			const scrollY = getScrollY();
+			const { start, span } = boundsRef.current;
+			const viewportWidth = window.innerWidth || 1280;
+			const progressGain = getProgressGain(viewportWidth);
+			const raw = ((scrollY - start) / span) * progressGain;
+			const nextTarget = clamp(raw, 0, 1);
+			if (Math.abs(nextTarget - targetProgressRef.current) < 0.0005) {
+				return;
+			}
+			targetProgressRef.current = nextTarget;
 			startTick();
 		};
 
@@ -179,11 +275,19 @@ export default function MountainProcessIsland({ steps = [] }) {
 			rafIdRef.current = 0;
 			const target = targetProgressRef.current;
 			const current = currentProgressRef.current;
-			const next = current + (target - current) * 0.16;
+			const next = current + (target - current) * 0.2;
 			const settled = Math.abs(target - next) < 0.0008;
 			const progress = settled ? target : next;
+			const delta = Math.abs(progress - renderCacheRef.current.lastRenderedProgress);
+
+			if (!settled && delta < 0.0007) {
+				currentProgressRef.current = progress;
+				startTick();
+				return;
+			}
 
 			currentProgressRef.current = progress;
+			renderCacheRef.current.lastRenderedProgress = progress;
 			renderProgress(progress);
 
 			if (!settled) {
@@ -191,13 +295,24 @@ export default function MountainProcessIsland({ steps = [] }) {
 			}
 		};
 
+		const handleResize = () => {
+			cardLayoutRef.current = { mode: '', entries: [] };
+			measureBounds();
+			readTarget();
+		};
+
+		measureBounds();
 		readTarget();
 		window.addEventListener('scroll', readTarget, { passive: true });
-		window.addEventListener('resize', readTarget);
+		window.addEventListener('resize', handleResize);
+		window.addEventListener('orientationchange', handleResize);
+		window.addEventListener('load', handleResize);
 
 		return () => {
 			window.removeEventListener('scroll', readTarget);
-			window.removeEventListener('resize', readTarget);
+			window.removeEventListener('resize', handleResize);
+			window.removeEventListener('orientationchange', handleResize);
+			window.removeEventListener('load', handleResize);
 			cancelAnimationFrame(rafIdRef.current);
 		};
 	}, [ranges, steps.length]);

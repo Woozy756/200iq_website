@@ -32,7 +32,7 @@ export const ui = {
 			titleHighlight: 'dream website',
 			titleEnd: 'done with us.',
 			kicker: 'Precision Engineering  |  Elite Design  |  Absolute Performance',
-			lead: 'Based in Latvia, we craft modern websites that capture attention fast and convert with technical clarity.',
+			lead: 'You share your goals, constraints, and target outcomes. We engineer a custom digital solution that bridges vision and execution, helping you overcome complexity, unlock opportunities, and achieve meaningful, measurable progress.',
 		},
 		process: {
 			eyebrow: 'How We Build',

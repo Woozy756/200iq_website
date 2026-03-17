@@ -585,6 +585,29 @@ main {
 	justify-content: flex-start;
 }
 
+.hero-side-viewport {
+	position: relative;
+	width: 100%;
+	max-height: clamp(20rem, 50vh, 32rem);
+	overflow: hidden;
+	--mask-top: 1;
+	--mask-bottom: 0;
+	mask-image: linear-gradient(
+		to bottom,
+		rgba(0, 0, 0, var(--mask-top)) 0%,
+		black 15%,
+		black 85%,
+		rgba(0, 0, 0, var(--mask-bottom)) 100%
+	);
+	-webkit-mask-image: linear-gradient(
+		to bottom,
+		rgba(0, 0, 0, var(--mask-top)) 0%,
+		black 15%,
+		black 85%,
+		rgba(0, 0, 0, var(--mask-bottom)) 100%
+	);
+}
+
 .hero-title {
 	margin: 0;
 	font-family: 'Anton', sans-serif;
@@ -615,6 +638,7 @@ main {
 }
 
 .hero-lead {
+	position: relative;
 	margin: 0;
 	max-width: 17rem;
 	font-family: 'Space Grotesk', sans-serif;
@@ -626,6 +650,7 @@ main {
 	overflow-wrap: normal;
 	hyphens: none;
 	text-wrap: pretty;
+	will-change: transform;
 }
 
 .cool-split {
@@ -766,7 +791,7 @@ main {
 
 .process-scroll {
 	position: relative;
-	height: 500vh;
+	height: 260vh;
 	margin-top: 0;
 }
 
@@ -1018,6 +1043,28 @@ main {
 	z-index: 0;
 }
 
+.svcx-scroll::after {
+	content: '';
+	position: absolute;
+	left: 8%;
+	right: 8%;
+	bottom: 0;
+	height: 1px;
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		rgba(225, 161, 64, 0.52) 20%,
+		rgba(239, 207, 160, 0.85) 50%,
+		rgba(225, 161, 64, 0.52) 80%,
+		transparent 100%
+	);
+	box-shadow: 0 0 16px rgba(225, 161, 64, 0.36);
+	pointer-events: none;
+	z-index: 3;
+	transform: translateZ(0);
+	backface-visibility: hidden;
+}
+
 .svcx-sticky {
 	position: sticky;
 	top: 0;
@@ -1233,6 +1280,33 @@ main {
 }
 
 /* ── Tech / metrics ── */
+.tech-shell {
+	position: relative;
+	isolation: isolate;
+}
+
+.tech-shell::before {
+	content: '';
+	position: absolute;
+	left: 8%;
+	right: 8%;
+	top: 0;
+	height: 1px;
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		rgba(225, 161, 64, 0.52) 20%,
+		rgba(239, 207, 160, 0.85) 50%,
+		rgba(225, 161, 64, 0.52) 80%,
+		transparent 100%
+	);
+	box-shadow: 0 0 16px rgba(225, 161, 64, 0.36);
+	pointer-events: none;
+	z-index: 4;
+	transform: translateZ(0);
+	backface-visibility: hidden;
+}
+
 .metric-grid {
 	margin-top: 1.5rem;
 	display: grid;
@@ -1499,6 +1573,24 @@ main {
 	box-shadow: 0 0 6px rgba(225, 161, 64, 0.8);
 }
 
+@media (min-width: 981px) {
+	.process-dots .process-dot:nth-of-type(n + 47) {
+		display: none;
+	}
+
+	.process-brain-path-glow-wide {
+		filter: blur(24px);
+	}
+
+	.process-brain-path-glow-mid {
+		filter: blur(9px);
+	}
+
+	.process-brain-path-progress {
+		filter: drop-shadow(0 0 14px rgba(225, 161, 64, 0.96)) drop-shadow(0 0 6px rgba(239, 207, 160, 0.78));
+	}
+}
+
 /* ── Responsive ── */
 @media (max-width: 980px) {
 	.container {
@@ -1541,9 +1633,13 @@ main {
 		justify-content: flex-start;
 	}
 
+	.hero-side-viewport {
+		max-height: calc(1.5 * var(--text-xl) * 3); /* cap at exactly 3 lines */
+	}
+
 	.hero-lead {
 		max-width: 52ch;
-		font-size: clamp(1.32rem, 5.9vw, 1.72rem);
+		font-size: var(--text-xl);
 		line-height: 1.5;
 	}
 
@@ -1561,7 +1657,7 @@ main {
 	}
 
 	.process-scroll {
-		height: 460vh;
+		height: 240vh;
 	}
 
 	.svcx-card {
@@ -1599,6 +1695,29 @@ main {
 	.process-step {
 		width: min(11.25rem, 33vw);
 		padding: 0.72rem;
+		backdrop-filter: blur(12px);
+	}
+
+	.process-dot {
+		box-shadow:
+			0 0 12px rgba(225, 161, 64, 0.9),
+			0 0 24px rgba(225, 161, 64, 0.5);
+	}
+
+	.process-dots .process-dot:nth-of-type(n + 37) {
+		display: none;
+	}
+
+	.process-brain-path-glow-wide {
+		filter: blur(20px);
+	}
+
+	.process-brain-path-glow-mid {
+		filter: blur(8px);
+	}
+
+	.process-brain-path-progress {
+		filter: drop-shadow(0 0 12px rgba(225, 161, 64, 0.9)) drop-shadow(0 0 5px rgba(239, 207, 160, 0.72));
 	}
 
 	.process-step-title {
@@ -1663,10 +1782,14 @@ main {
 		width: 100%;
 	}
 
+	.hero-side-viewport {
+		max-height: calc(1.5 * var(--text-xl) * 3); /* cap at exactly 3 lines */
+	}
+
 	.hero-lead {
 		margin-top: 0.35rem;
 		max-width: 52ch;
-		font-size: clamp(1.32rem, 5.9vw, 1.72rem);
+		font-size: var(--text-xl);
 		line-height: 1.5;
 	}
 }
@@ -1682,7 +1805,7 @@ main {
 	}
 
 	.process-scroll {
-		height: 420vh;
+		height: 220vh;
 	}
 
 	.process-stage {
@@ -1722,7 +1845,11 @@ main {
 	.process-step {
 		width: min(9.5rem, 41vw);
 		padding: 0.56rem;
-		backdrop-filter: blur(14px);
+		backdrop-filter: blur(10px);
+	}
+
+	.process-dots .process-dot:nth-of-type(n + 29) {
+		display: none;
 	}
 
 	.process-step-title {
