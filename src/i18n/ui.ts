@@ -131,6 +131,39 @@ export const ui = {
 			status: 'Status: Operational',
 			copyright: 'Copyright 2026 200IQ Systems. All rights reserved.',
 		},
+		contact: {
+			eyebrow: 'Start the Process',
+			titleStart: "Let's build",
+			titleHighlight: 'together',
+			lead: 'You share your goals, constraints, and target outcomes. We engineer the digital solution to get you there.',
+			form: {
+				nameLabel: 'Full Name',
+				namePlaceholder: 'John Doe',
+				emailLabel: 'Email Address',
+				emailPlaceholder: 'john@example.com',
+				projectTypeLabel: 'Project Type',
+				projectTypePlaceholder: 'Select an option',
+				types: {
+					content: 'Content Site / Blog (No E-commerce)',
+					ecommerce: 'High-Performance E-commerce',
+					animated: 'High-Fidelity Animated Experience',
+					custom: 'Custom Enterprise Architecture',
+				},
+				detailsLabel: 'Project Details',
+				detailsPlaceholder: 'Share your goals, restraints, and target outcomes...',
+				submitBtn: 'Apply For Access',
+				submittingBtn: 'Transmitting...',
+				errorMsg: 'Transmission failed. Please try again or contact us directly.',
+				successTitle: 'Message Received',
+				successDesc: 'Access granted. Our elite engineering team will review your project details and contact you shortly.',
+				validation: {
+					nameReq: 'Name is required',
+					emailReq: 'Valid email is required',
+					typeReq: 'Please select a project type',
+					detailsReq: 'Please provide some project details'
+				}
+			}
+		},
 	},
 } as const;
 

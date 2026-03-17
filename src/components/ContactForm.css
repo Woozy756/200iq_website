@@ -1,0 +1,208 @@
+.contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.form-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+    width: 100%;
+    background: rgba(8, 3, 1, 0.4);
+    border: 1px solid rgba(225, 161, 64, 0.15);
+    border-bottom: 2px solid rgba(225, 161, 64, 0.35);
+    border-radius: 0.5rem;
+    padding: 0.85rem 1rem;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: var(--text-body);
+    transition: all 0.25s ease;
+    appearance: none;
+    outline: none;
+}
+
+.form-select {
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.form-select.has-value {
+    color: var(--text);
+}
+
+.dropdown-chevron {
+    transition: transform 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+    background: rgba(225, 161, 64, 0.08);
+    border-color: rgba(225, 161, 64, 0.4);
+    border-bottom-color: var(--accent);
+    box-shadow: 0 4px 20px rgba(225, 161, 64, 0.12);
+}
+
+.form-input.has-error,
+.form-select.has-error,
+.form-textarea.has-error {
+    border-bottom-color: #ff4b4b;
+    border-color: rgba(255, 75, 75, 0.2);
+}
+
+.form-error {
+    color: #ff4b4b;
+    font-size: var(--text-xs);
+    margin-top: 0.25rem;
+}
+
+.form-global-error {
+    padding: 1rem;
+    background: rgba(255, 75, 75, 0.1);
+    border: 1px solid rgba(255, 75, 75, 0.3);
+    border-radius: 0.5rem;
+    color: #ffb4b4;
+    font-size: var(--text-sm);
+    text-align: center;
+}
+
+.form-submit {
+    margin-top: 0.5rem;
+    width: 100%;
+    padding: 1.1rem 1.5rem;
+}
+
+.contact-success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 1.25rem;
+    padding: 4rem 1rem;
+    height: 100%;
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.success-icon {
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #EFCFA0 0%, #E1A140 45%, #914110 100%);
+    color: #130804;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    font-weight: bold;
+    box-shadow: 0 0 35px rgba(225, 161, 64, 0.45);
+    margin-bottom: 0.5rem;
+}
+
+.success-title {
+    font-family: 'Anton', sans-serif;
+    font-size: var(--text-h3);
+    text-transform: uppercase;
+    color: var(--champagne);
+    margin: 0;
+    line-height: 1.1;
+}
+
+.success-message {
+    color: var(--muted);
+    font-size: var(--text-body);
+    max-width: 32ch;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* Custom Dropdown Styling */
+.custom-dropdown {
+    position: relative;
+    width: 100%;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
+    background: rgba(18, 7, 3, 0.95);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(225, 161, 64, 0.25);
+    border-radius: 0.5rem;
+    z-index: 10;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-item {
+    width: 100%;
+    text-align: left;
+    padding: 1rem;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: var(--text-body);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background: rgba(225, 161, 64, 0.1);
+    color: var(--champagne);
+}
+
+.dropdown-item.is-selected {
+    background: rgba(225, 161, 64, 0.15);
+    color: var(--champagne);
+    font-weight: 600;
+}
+
+/* Fix Autofill Styling turning white */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active{
+    -webkit-box-shadow: 0 0 0 30px #1a0b05 inset !important;
+    -webkit-text-fill-color: var(--text) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}

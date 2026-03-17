@@ -16,7 +16,7 @@ export default function NavMenuIsland({
 
 	useEffect(() => {
 		const handleScroll = () => {
-			const hero = document.querySelector('.hero');
+			const hero = document.querySelector('.hero:not(.contact-hero)');
 			if (!hero) {
 				setIsScrolled(window.scrollY > 20);
 				return;
@@ -87,7 +87,7 @@ export default function NavMenuIsland({
 							))}
 						</div>
 					)}
-					<a href="#join" className="btn btn-primary desktop-only">
+					<a href={`/${currentLocale}/contact`} className="btn btn-primary desktop-only">
 						{ctaLabel}
 					</a>
 					<button
@@ -114,7 +114,7 @@ export default function NavMenuIsland({
 							{link.label}
 						</a>
 					))}
-					<a href="#join" className="btn btn-primary" onClick={() => setIsOpen(false)}>
+					<a href={`/${currentLocale}/contact`} className="btn btn-primary" onClick={() => setIsOpen(false)}>
 						{ctaLabel}
 					</a>
 				</div>
