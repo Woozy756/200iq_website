@@ -85,6 +85,7 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 	const layoutRef = useRef({
 		cardWidth: 0,
 		glowSize: 0,
+		cardHeight: 0,
 	});
 
 	useEffect(() => {
@@ -205,6 +206,7 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			const layout = layoutRef.current;
 			const cardWidthChanged = layout.cardWidth !== cardWidth;
 			const glowSizeChanged = layout.glowSize !== glowSize;
+			let tallestCardHeight = 0;
 
 			if (cardWidthChanged) {
 				layout.cardWidth = cardWidth;
@@ -218,12 +220,32 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 
 			for (let index = 0; index < cardCount; index += 1) {
 				const cardNode = cardNodes[index];
+				if (cardNode) {
+					const widthValue = `${cardWidth}px`;
+					if (cardNode.style.width !== widthValue) {
+						cardNode.style.width = widthValue;
+					}
+					cardNode.style.height = '';
+
+					const naturalHeight = Math.max(
+						cardNode.getBoundingClientRect().height,
+						cardNode.scrollHeight,
+					);
+					tallestCardHeight = Math.max(tallestCardHeight, naturalHeight);
+				}
+			}
+
+			const nextCardHeight = Math.ceil(tallestCardHeight);
+			if (layout.cardHeight !== nextCardHeight) {
+				layout.cardHeight = nextCardHeight;
+			}
+
+			for (let index = 0; index < cardCount; index += 1) {
+				const cardNode = cardNodes[index];
 				const x = positions[index] ?? viewportWidth + 200;
 
 				if (cardNode) {
-					if (cardWidthChanged) {
-						cardNode.style.width = `${cardWidth}px`;
-					}
+					cardNode.style.height = `${layout.cardHeight}px`;
 					cardNode.style.transform = `translate3d(${x}px, -50%, 0)`;
 				}
 			}

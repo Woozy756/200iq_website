@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import SmoothScroll from '../components/SmoothScroll.astro';
 import { normalizeLang } from '../i18n/utils';
+import { defaultLang, locales, type Lang } from '../i18n/ui';
 import { ClientRouter } from 'astro:transitions';
 
 interface Props {
@@ -12,6 +13,13 @@ interface Props {
 
 const { lang, title, description } = Astro.props;
 const activeLang = normalizeLang(lang);
+const currentPath = Astro.url.pathname;
+
+const getLocalizedPath = (locale: Lang) => {
+	const segments = currentPath.split('/').filter(Boolean);
+	const pathSegments = locales.includes(segments[0] as Lang) ? segments.slice(1) : segments;
+	return pathSegments.length > 0 ? `/${locale}/${pathSegments.join('/')}` : `/${locale}/`;
+};
 ---
 
 <!doctype html>
@@ -22,8 +30,12 @@ const activeLang = normalizeLang(lang);
 		<meta name="description" content={description} />
 		<meta name="generator" content={Astro.generator} />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="alternate" hreflang="en" href={`${Astro.url.origin}/en/`} />
-		<link rel="alternate" hreflang="x-default" href={`${Astro.url.origin}/en/`} />
+		{
+			locales.map((locale) => (
+				<link rel="alternate" hreflang={locale} href={`${Astro.url.origin}${getLocalizedPath(locale)}`} />
+			))
+		}
+		<link rel="alternate" hreflang="x-default" href={`${Astro.url.origin}${getLocalizedPath(defaultLang)}`} />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link
@@ -31,7 +43,7 @@ const activeLang = normalizeLang(lang);
 			href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css"
 		/>
 		<link
-			href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap"
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Oswald:wght@700&family=Space+Grotesk:wght@400;500;700&display=swap"
 			rel="stylesheet"
 		/>
 		<title>{title}</title>

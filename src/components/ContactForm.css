@@ -131,7 +131,6 @@
 }
 
 .success-title {
-    font-family: 'Anton', sans-serif;
     font-size: var(--text-h3);
     text-transform: uppercase;
     color: var(--champagne);

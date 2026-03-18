@@ -8,6 +8,7 @@ import ScrollProgressIsland from '../islands/ScrollProgressIsland.jsx';
 import ServicesSection from './ServicesSection.astro';
 import StatsSection from './StatsSection.astro';
 import TechSection from './TechSection.astro';
+import { localeEndonyms } from '../i18n/ui';
 import { normalizeLang, useTranslations } from '../i18n/utils';
 
 interface Props {
@@ -24,10 +25,10 @@ const navLinks = [
 ];
 
 const localeLinks = [
-	{ code: 'en', label: t('navigation.localeNames.en'), flagCode: 'gb' },
-	{ code: 'lv', label: t('navigation.localeNames.lv'), flagCode: 'lv' },
-	{ code: 'ru', label: t('navigation.localeNames.ru'), flagCode: 'ru' },
-	{ code: 'et', label: t('navigation.localeNames.et'), flagCode: 'ee' },
+	{ code: 'lv', label: localeEndonyms.lv, flagCode: 'lv', href: '/lv/' },
+	{ code: 'en', label: localeEndonyms.en, flagCode: 'gb', href: '/en/' },
+	{ code: 'ru', label: localeEndonyms.ru, flagCode: 'ru', href: '/ru/' },
+	{ code: 'et', label: localeEndonyms.et, flagCode: 'ee', href: '/et/' },
 ];
 ---
 

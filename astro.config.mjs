@@ -5,12 +5,12 @@ import node from '@astrojs/node';
 
 // https://astro.build/config
 export default defineConfig({
-	output: 'static',
+	output: 'server',
 	adapter: node({ mode: 'standalone' }),
 	integrations: [react()],
 	i18n: {
-		defaultLocale: 'en',
-		locales: ['en'],
+		defaultLocale: 'lv',
+		locales: ['en', 'lv', 'ru', 'et'],
 		routing: {
 			prefixDefaultLocale: true,
 			redirectToDefaultLocale: false,

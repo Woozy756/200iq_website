@@ -1,0 +1,11 @@
+---
+import HomePage from '../../components/HomePage.astro';
+import { ui } from '../../i18n/ui';
+import Layout from '../../layouts/Layout.astro';
+
+const lang = 'et';
+---
+
+<Layout lang={lang} title={ui[lang].metadata.title} description={ui[lang].metadata.description}>
+	<HomePage lang={lang} />
+</Layout>

@@ -3,7 +3,6 @@ import { subscribeViewportRaf } from './viewportRaf';
 
 const PENDING_NAV_TARGET_KEY = '__pendingNavTarget';
 const PENDING_NAV_TRANSITION_KEY = '__pendingNavTransition';
-const LOCALE_STORAGE_KEY = 'preferredLocalePreview';
 
 function getTargetUrl(href) {
 	if (!href) return null;
@@ -58,11 +57,7 @@ export default function NavMenuIsland({
 		|| availableLocales[0]
 		|| null
 	);
-	const [selectedLocaleCode, setSelectedLocaleCode] = useState(defaultLocaleOption?.code ?? currentLocale);
-	const selectedLocale = (
-		availableLocales.find((locale) => locale.code === selectedLocaleCode)
-		|| defaultLocaleOption
-	);
+	const selectedLocale = defaultLocaleOption;
 
 	useEffect(() => {
 		const measureBounds = () => {
@@ -106,23 +101,6 @@ export default function NavMenuIsland({
 	}, []);
 
 	useEffect(() => {
-		if (!showLocaleLinks) {
-			return undefined;
-		}
-
-		try {
-			const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-			if (storedLocale && availableLocales.some((locale) => locale.code === storedLocale)) {
-				setSelectedLocaleCode(storedLocale);
-			}
-		} catch {
-			// Ignore storage failures and keep the current locale visible.
-		}
-
-		return undefined;
-	}, [availableLocales, showLocaleLinks]);
-
-	useEffect(() => {
 		if (!isLocaleMenuOpen) {
 			return undefined;
 		}
@@ -148,14 +126,26 @@ export default function NavMenuIsland({
 		};
 	}, [isLocaleMenuOpen]);
 
-	const handleLocaleSelect = (localeCode) => {
-		setSelectedLocaleCode(localeCode);
+	const handleLocaleSelect = (event, locale) => {
 		setIsLocaleMenuOpen(false);
 
-		try {
-			window.localStorage.setItem(LOCALE_STORAGE_KEY, localeCode);
-		} catch {
-			// Ignore storage failures and keep the selection in memory only.
+		if (!locale?.href) {
+			return;
+		}
+
+		const targetUrl = getTargetUrl(locale.href);
+		if (!targetUrl) {
+			return;
+		}
+
+		const isSamePage =
+			targetUrl.pathname === window.location.pathname &&
+			targetUrl.search === window.location.search &&
+			targetUrl.hash === window.location.hash;
+
+		if (isSamePage) {
+			event.preventDefault();
+			return;
 		}
 	};
 
@@ -287,31 +277,31 @@ export default function NavMenuIsland({
 								aria-label={languageLabel}
 							>
 								{availableLocales.map((locale) => (
-									<button
+									<a
 										key={locale.code}
-										type="button"
+										href={locale.href}
 										role="option"
 										aria-selected={locale.code === selectedLocale.code}
 										className={`locale-option ${locale.code === selectedLocale.code ? 'is-active' : ''}`}
-										onClick={() => handleLocaleSelect(locale.code)}
+										onClick={(event) => handleLocaleSelect(event, locale)}
 									>
 										<span
 											className={`locale-option-flag fi fi-${locale.flagCode}`}
 											aria-hidden="true"
 										/>
 										<span className="locale-option-label">{locale.label}</span>
-									</button>
+									</a>
 								))}
 							</div>
 						</div>
 					)}
-						<button
-							type="button"
-							className="nav-toggle"
-							onClick={() => {
-								setIsLocaleMenuOpen(false);
-								setIsOpen((prev) => !prev);
-							}}
+					<button
+						type="button"
+						className="nav-toggle"
+						onClick={() => {
+							setIsLocaleMenuOpen(false);
+							setIsOpen((prev) => !prev);
+						}}
 						aria-expanded={isOpen}
 						aria-label={isOpen ? closeMenuLabel : openMenuLabel}
 					>

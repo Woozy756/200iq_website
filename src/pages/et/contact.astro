@@ -6,14 +6,14 @@ import FooterSection from '../../components/FooterSection.astro';
 import { localeEndonyms } from '../../i18n/ui';
 import { getDictionary, normalizeLang, useTranslations } from '../../i18n/utils';
 
-const lang = normalizeLang('en');
+const lang = normalizeLang('et');
 const t = useTranslations(lang);
 const dictionary = getDictionary(lang);
 
 const navLinks = [
-	{ label: t('navigation.links.process'), href: '/en/', targetId: 'process' },
-	{ label: t('navigation.links.tech'), href: '/en/', targetId: 'tech' },
-	{ label: t('navigation.links.network'), href: '/en/', targetId: 'network' },
+	{ label: t('navigation.links.process'), href: '/et/', targetId: 'process' },
+	{ label: t('navigation.links.tech'), href: '/et/', targetId: 'tech' },
+	{ label: t('navigation.links.network'), href: '/et/', targetId: 'network' },
 ];
 
 const localeLinks = [
