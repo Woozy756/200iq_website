@@ -32,7 +32,7 @@ export const ui = {
 			titleHighlight: 'dream website',
 			titleEnd: 'done with us.',
 			kicker: 'Precision Engineering  |  Elite Design  |  Absolute Performance',
-			lead: 'You share your goals, constraints, and target outcomes. We engineer a custom digital solution that bridges vision and execution, helping you overcome complexity, unlock opportunities, and achieve meaningful, measurable progress.',
+			lead: 'You share your vision, goals, and ambitions. We create elite-level websites - defined by precision, experience, and refined, high-end animations. The result is a digital presence that not only looks exceptional, but maximizes your visibility and leaves a lasting impression on every client.',
 			readyPrompt: 'Ready to get started?',
 			primaryCta: 'Yes, lets go',
 			secondaryCta: 'No',
