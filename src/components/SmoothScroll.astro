@@ -1,168 +1,188 @@
 <script>
 	import Lenis from 'lenis';
 
-	let lenis;
-	let rafId = 0;
-	let mediaQuery;
+	const CONTROLLER_KEY = '__smoothScrollController';
 	const pendingNavTargetKey = '__pendingNavTarget';
 	const pendingNavTransitionKey = '__pendingNavTransition';
 	const processSnapKey = '__forceProcessSnap';
 
-	function stopRaf() {
-		if (rafId) {
-			cancelAnimationFrame(rafId);
-			rafId = 0;
-		}
-	}
+	function createController() {
+		let lenis = null;
+		let afterSwapFrame = 0;
+		let pageLoadFrame = 0;
 
-	function stopLenisMotion() {
-		stopRaf();
-		if (lenis && typeof lenis.stop === 'function') {
-			lenis.stop();
-		}
-	}
-
-	function startLenisMotion() {
-		if (lenis && typeof lenis.start === 'function') {
-			lenis.start();
-		}
-		if (lenis && !rafId) {
-			startRaf();
-		}
-	}
-
-	function jumpToTarget(target) {
-		if (!target) return;
-		if (target.id === 'process') {
-			window[processSnapKey] = true;
-		}
-		if (lenis) {
-			lenis.scrollTo(target, { immediate: true, force: true });
-			return;
-		}
-
-		const targetY = target.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0);
-		window.scrollTo(0, targetY);
-	}
-
-	function runSectionTransition(work) {
-		stopLenisMotion();
-
-		if (typeof document.startViewTransition === 'function') {
-			const transition = document.startViewTransition(() => {
-				work();
-			});
-
-			transition.finished.finally(() => {
-				startLenisMotion();
-			});
-			return;
-		}
-
-		work();
-		startLenisMotion();
-	}
-
-	function destroyLenis() {
-		stopRaf();
-		if (lenis) {
-			lenis.destroy();
-			lenis = undefined;
-		}
-		delete window.__lenis;
-		delete window.__jumpToTargetWithTransition;
-	}
-
-	function startRaf() {
-		const raf = (time) => {
-			if (!lenis) return;
-			lenis.raf(time);
-			rafId = requestAnimationFrame(raf);
+		const cancelFrame = (frameId) => {
+			if (frameId) {
+				cancelAnimationFrame(frameId);
+			}
+			return 0;
 		};
 
-		rafId = requestAnimationFrame(raf);
-	}
+		const clearFrames = () => {
+			afterSwapFrame = cancelFrame(afterSwapFrame);
+			pageLoadFrame = cancelFrame(pageLoadFrame);
+		};
 
-	function jumpToTargetWithTransition(target) {
-		if (!target) return;
+		const getLenis = () => {
+			if (lenis) {
+				return lenis;
+			}
 
-		runSectionTransition(() => {
-			jumpToTarget(target);
-		});
-	}
-
-	function consumePendingTarget() {
-		const targetId = window.sessionStorage.getItem(pendingNavTargetKey);
-		window.sessionStorage.removeItem(pendingNavTargetKey);
-		const shouldTransition = window.sessionStorage.getItem(pendingNavTransitionKey) === '1';
-		window.sessionStorage.removeItem(pendingNavTransitionKey);
-		if (!targetId) {
-			return;
-		}
-
-		const target = document.getElementById(targetId);
-		if (!target) {
-			return;
-		}
-
-		requestAnimationFrame(() => {
-			requestAnimationFrame(() => {
-				if (shouldTransition) {
-					runSectionTransition(() => {
-						jumpToTarget(target);
-					});
-					return;
-				}
-
-				jumpToTarget(target);
+			lenis = new Lenis({
+				autoRaf: true,
+				smoothWheel: true,
+				syncTouch: true,
+				gestureOrientation: 'vertical',
+				anchors: false,
+				overscroll: true,
+				lerp: 0.085,
+				wheelMultiplier: 0.95,
 			});
-		});
+
+			window.__lenis = lenis;
+			return lenis;
+		};
+
+		const syncLenis = () => {
+			const instance = getLenis();
+			instance.resize();
+			instance.scrollTo(window.scrollY || window.pageYOffset || 0, {
+				immediate: true,
+				force: true,
+			});
+		};
+
+		const jumpToTarget = (target) => {
+			if (!target) return;
+
+			if (target.id === 'process') {
+				window[processSnapKey] = true;
+			}
+
+			getLenis().scrollTo(target, {
+				immediate: true,
+				force: true,
+			});
+		};
+
+		const withViewTransition = (work) => {
+			const instance = getLenis();
+			instance.stop();
+
+			if (typeof document.startViewTransition === 'function') {
+				const transition = document.startViewTransition(work);
+				transition.finished.finally(() => {
+					syncLenis();
+					instance.start();
+				});
+				return;
+			}
+
+			work();
+			syncLenis();
+			instance.start();
+		};
+
+		const consumePendingTarget = () => {
+			const targetId = window.sessionStorage.getItem(pendingNavTargetKey);
+			window.sessionStorage.removeItem(pendingNavTargetKey);
+			const shouldTransition = window.sessionStorage.getItem(pendingNavTransitionKey) === '1';
+			window.sessionStorage.removeItem(pendingNavTransitionKey);
+
+			if (!targetId) return;
+
+			const target = document.getElementById(targetId);
+			if (!target) return;
+
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => {
+					if (shouldTransition) {
+						withViewTransition(() => {
+							jumpToTarget(target);
+						});
+						return;
+					}
+
+					jumpToTarget(target);
+				});
+			});
+		};
+
+		const handleBeforeSwap = () => {
+			clearFrames();
+			if (!lenis) return;
+			lenis.stop();
+		};
+
+		const handleAfterSwap = () => {
+			clearFrames();
+			if (!lenis) return;
+
+			afterSwapFrame = requestAnimationFrame(() => {
+				if (!lenis) return;
+				syncLenis();
+				lenis.start();
+			});
+		};
+
+		const handlePageLoad = () => {
+			pageLoadFrame = cancelFrame(pageLoadFrame);
+			pageLoadFrame = requestAnimationFrame(() => {
+				syncLenis();
+				consumePendingTarget();
+			});
+		};
+
+		const mount = () => {
+			window.__jumpToTargetWithTransition = (target) => {
+				if (!target) return;
+				withViewTransition(() => {
+					jumpToTarget(target);
+				});
+			};
+
+			getLenis();
+			handlePageLoad();
+		};
+
+		const destroy = () => {
+			clearFrames();
+			document.removeEventListener('astro:before-swap', handleBeforeSwap);
+			document.removeEventListener('astro:after-swap', handleAfterSwap);
+			document.removeEventListener('astro:page-load', handlePageLoad);
+			window.removeEventListener('pageshow', handlePageLoad);
+			window.removeEventListener('beforeunload', destroy);
+
+			if (lenis) {
+				lenis.destroy();
+				lenis = null;
+			}
+
+			delete window.__lenis;
+			delete window.__jumpToTargetWithTransition;
+			delete window[CONTROLLER_KEY];
+		};
+
+		document.addEventListener('astro:before-swap', handleBeforeSwap);
+		document.addEventListener('astro:after-swap', handleAfterSwap);
+		document.addEventListener('astro:page-load', handlePageLoad);
+		window.addEventListener('pageshow', handlePageLoad);
+		window.addEventListener('beforeunload', destroy);
+
+		return {
+			mount,
+			destroy,
+		};
 	}
 
-	function setupLenis() {
-		destroyLenis();
-		window.__jumpToTargetWithTransition = jumpToTargetWithTransition;
-
-		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-			consumePendingTarget();
-			return;
-		}
-
-		lenis = new Lenis({
-			duration: 1.05,
-			easing: (t) => (t === 1 ? 1 : 1 - 2 ** (-10 * t)),
-			smoothWheel: true,
-			syncTouch: true,
-			gestureOrientation: 'vertical',
-			anchors: true,
-		});
-
-		window.__lenis = lenis;
-		startRaf();
-		consumePendingTarget();
+	const existingController = window[CONTROLLER_KEY];
+	if (existingController && typeof existingController.mount === 'function') {
+		existingController.mount();
+	} else {
+		const controller = createController();
+		window[CONTROLLER_KEY] = controller;
+		controller.mount();
 	}
-
-	function setupReducedMotionListener() {
-		mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-		const handleChange = () => setupLenis();
-
-		if (typeof mediaQuery.addEventListener === 'function') {
-			mediaQuery.addEventListener('change', handleChange);
-			return;
-		}
-
-		if (typeof mediaQuery.addListener === 'function') {
-			mediaQuery.addListener(handleChange);
-		}
-	}
-
-	document.addEventListener('astro:before-swap', destroyLenis);
-	document.addEventListener('astro:page-load', setupLenis);
-	window.addEventListener('pageshow', setupLenis);
-	window.addEventListener('beforeunload', destroyLenis);
-
-	setupReducedMotionListener();
-	setupLenis();
 </script>
 
 <style is:global>
@@ -175,15 +195,19 @@
 		scroll-behavior: auto !important;
 	}
 
-	html.lenis.lenis-stopped {
-		overflow: hidden;
+	.lenis:not(.lenis-autoToggle).lenis-stopped {
+		overflow: clip;
 	}
 
-	html.lenis.lenis-smooth [data-lenis-prevent] {
+	.lenis [data-lenis-prevent],
+	.lenis [data-lenis-prevent-wheel],
+	.lenis [data-lenis-prevent-touch],
+	.lenis [data-lenis-prevent-vertical],
+	.lenis [data-lenis-prevent-horizontal] {
 		overscroll-behavior: contain;
 	}
 
-	body::before {
-		content: none;
+	.lenis.lenis-smooth iframe {
+		pointer-events: none;
 	}
 </style>

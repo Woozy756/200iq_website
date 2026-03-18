@@ -119,10 +119,45 @@ export default function NavMenuIsland({
 		setIsOpen(false);
 	};
 
+	const handleBrandClick = (event) => {
+		const anchor = event.currentTarget;
+		const url = getTargetUrl(anchor?.getAttribute('href'));
+		if (!url) {
+			setIsOpen(false);
+			return;
+		}
+
+		const isSamePage =
+			url.pathname === window.location.pathname &&
+			url.search === window.location.search;
+
+		if (!isSamePage) {
+			setIsOpen(false);
+			return;
+		}
+
+		event.preventDefault();
+		window.sessionStorage.removeItem(PENDING_NAV_TARGET_KEY);
+		window.sessionStorage.removeItem(PENDING_NAV_TRANSITION_KEY);
+		setIsOpen(false);
+
+		if (window.__lenis && typeof window.__lenis.scrollTo === 'function') {
+			window.__lenis.scrollTo(0, { immediate: true, force: true });
+			return;
+		}
+
+		window.scrollTo(0, 0);
+	};
+
 	return (
 		<header className={`nav-shell ${isScrolled ? 'is-scrolled' : ''}`}>
 			<div className="container nav-inner">
-				<a className="brand brand-logo-link" href={`/${currentLocale}/`} aria-label={brand}>
+				<a
+					className="brand brand-logo-link"
+					href={`/${currentLocale}/`}
+					aria-label={brand}
+					onClick={handleBrandClick}
+				>
 					<span className="brand-logo-frame">
 						<img
 							className="brand-logo-image"

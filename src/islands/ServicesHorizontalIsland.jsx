@@ -88,6 +88,36 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 	});
 
 	useEffect(() => {
+		const resolveLiveNodes = () => {
+			const currentContainer = containerRef.current;
+			const candidates = document.querySelectorAll('.svcx-scroll');
+			let newestContainer = null;
+			for (let index = candidates.length - 1; index >= 0; index -= 1) {
+				const node = candidates[index];
+				if (node && document.contains(node)) {
+					newestContainer = node;
+					break;
+				}
+			}
+			const hasLiveContainer = currentContainer && document.contains(currentContainer);
+			const containerNode = newestContainer || (hasLiveContainer ? currentContainer : null);
+
+			if (!containerNode) {
+				return { containerNode: null, cardNodes: [], glowNodes: [] };
+			}
+
+			if (containerRef.current !== containerNode) {
+				containerRef.current = containerNode;
+			}
+
+			const cardNodes = Array.from(containerNode.querySelectorAll('.svcx-card'));
+			const glowNodes = Array.from(containerNode.querySelectorAll('.svcx-glow-spot'));
+			cardRefs.current = cardNodes;
+			glowRefs.current = glowNodes;
+
+			return { containerNode, cardNodes, glowNodes };
+		};
+
 		const getStatePositions = ({
 			arrivedCount,
 			count,
@@ -123,10 +153,11 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 		};
 
 		const renderFrame = () => {
-			if (!containerRef.current) return;
+			const { containerNode, cardNodes, glowNodes } = resolveLiveNodes();
+			if (!containerNode) return;
 
 			const viewportWidth = window.innerWidth || 1280;
-			const count = Math.max(cards.length, 1);
+			const count = Math.max(cards.length, cardNodes.length, 1);
 			const slots = viewportWidth >= 1200 ? 4 : viewportWidth >= 920 ? 3 : viewportWidth >= 640 ? 2 : 1;
 			const gap = viewportWidth >= 1200 ? 24 : viewportWidth >= 920 ? 20 : viewportWidth >= 640 ? 14 : 12;
 			const sidePadding = viewportWidth > 980 ? 40 : viewportWidth > 720 ? 32 : 20;
@@ -135,11 +166,11 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			const widthFromSlots = (viewportWidth - sidePadding * 2 - gap * (slots - 1)) / slots;
 			const cardWidth = clamp(widthFromSlots, minCardWidth, maxCardWidth);
 
-			const rect = containerRef.current.getBoundingClientRect();
+			const rect = containerNode.getBoundingClientRect();
 			const span = Math.max(rect.height - window.innerHeight, 1);
 			const progress = clamp(-rect.top / span, 0, 1);
 			const revealVisibility = clamp((progress - 0.01) / 0.08, 0, 1);
-			containerRef.current.style.setProperty('--svcx-reveal-visibility', `${revealVisibility}`);
+			containerNode.style.setProperty('--svcx-reveal-visibility', `${revealVisibility}`);
 
 			const offRight = viewportWidth + cardWidth + 90;
 			const offLeft = -cardWidth - 120;
@@ -183,9 +214,10 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 				layout.glowSize = glowSize;
 			}
 
-			for (let index = 0; index < cards.length; index += 1) {
-				const cardNode = cardRefs.current[index];
-				const glowNode = glowRefs.current[index];
+			const cardCount = Math.min(cardNodes.length, cards.length || cardNodes.length);
+
+			for (let index = 0; index < cardCount; index += 1) {
+				const cardNode = cardNodes[index];
 				const x = positions[index] ?? viewportWidth + 200;
 
 				if (cardNode) {
@@ -194,14 +226,22 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 					}
 					cardNode.style.transform = `translate3d(${x}px, -50%, 0)`;
 				}
+			}
+
+			const glowCount = Math.min(glowNodes.length, cardCount);
+
+			for (let index = 0; index < glowCount; index += 1) {
+				const glowNode = glowNodes[index];
+				const x = positions[index] ?? viewportWidth + 200;
 
 				if (glowNode) {
 					const enter = clamp(timeline - index, 0, 1);
 					const exit = clamp(timeline - (index + slots + 0.15), 0, 1);
 					const visibility = clamp(easeOutCubic(enter) * (1 - easeOutCubic(exit)), 0, 1);
-					glowNode.style.left = `${x + cardWidth * 0.5}px`;
+					const scale = 0.84 + visibility * 0.56;
+					const glowCenterX = x + cardWidth * 0.5;
 					glowNode.style.opacity = `${visibility}`;
-					glowNode.style.setProperty('--svcx-spot-scale', `${0.84 + visibility * 0.56}`);
+					glowNode.style.transform = `translate3d(calc(${glowCenterX}px - 50%), -50%, 0) scale(${scale})`;
 					if (glowSizeChanged) {
 						glowNode.style.setProperty('--svcx-spot-size', `${glowSize}px`);
 					}
@@ -209,7 +249,28 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			}
 		};
 
-		return subscribeViewportRaf(renderFrame);
+		const resyncAfterTransition = () => {
+			renderFrame();
+			requestAnimationFrame(() => {
+				renderFrame();
+				requestAnimationFrame(() => {
+					renderFrame();
+				});
+			});
+		};
+
+		document.addEventListener('astro:after-swap', resyncAfterTransition);
+		document.addEventListener('astro:page-load', resyncAfterTransition);
+		window.addEventListener('pageshow', resyncAfterTransition);
+
+		const unsubscribe = subscribeViewportRaf(renderFrame);
+
+		return () => {
+			document.removeEventListener('astro:after-swap', resyncAfterTransition);
+			document.removeEventListener('astro:page-load', resyncAfterTransition);
+			window.removeEventListener('pageshow', resyncAfterTransition);
+			unsubscribe();
+		};
 	}, [cards.length]);
 
 	return (

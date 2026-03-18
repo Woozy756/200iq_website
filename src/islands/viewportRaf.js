@@ -28,6 +28,9 @@ function bindWindowEvents() {
 	window.addEventListener('resize', queue);
 	window.addEventListener('orientationchange', queue);
 	window.addEventListener('load', queue);
+	window.addEventListener('pageshow', queue);
+	document.addEventListener('astro:after-swap', queue);
+	document.addEventListener('astro:page-load', queue);
 }
 
 function unbindWindowEvents() {
@@ -38,6 +41,9 @@ function unbindWindowEvents() {
 	window.removeEventListener('resize', queue);
 	window.removeEventListener('orientationchange', queue);
 	window.removeEventListener('load', queue);
+	window.removeEventListener('pageshow', queue);
+	document.removeEventListener('astro:after-swap', queue);
+	document.removeEventListener('astro:page-load', queue);
 
 	if (rafId) {
 		cancelAnimationFrame(rafId);
