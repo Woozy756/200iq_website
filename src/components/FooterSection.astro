@@ -7,7 +7,7 @@ interface Props {
 
 const lang = normalizeLang(Astro.props.lang);
 const t = useTranslations(lang);
-const facebookHref = 'https://www.facebook.com/people/200iq/61581955227968/';
+const facebookHref = t('footer.facebookHref');
 ---
 
 <footer id="join" class="site-footer">
@@ -22,7 +22,7 @@ const facebookHref = 'https://www.facebook.com/people/200iq/61581955227968/';
 			<div class="footer-columns">
 				<div class="footer-social-column">
 					<span class="footer-column-title">{t('footer.socialTitle')}</span>
-					<a class="footer-facebook-btn" href={facebookHref} aria-label="Facebook">
+					<a class="footer-facebook-btn" href={facebookHref} aria-label={t('footer.facebookAriaLabel')}>
 						<span class="footer-facebook-icon" aria-hidden="true">
 							<svg viewBox="0 0 24 24" focusable="false">
 								<path
@@ -31,38 +31,38 @@ const facebookHref = 'https://www.facebook.com/people/200iq/61581955227968/';
 								/>
 							</svg>
 						</span>
-						<span>Facebook</span>
+						<span>{t('footer.facebookLabel')}</span>
 					</a>
 				</div>
 				<div class="footer-contact-column">
-					<span class="footer-column-title">Contact Us</span>
+					<span class="footer-column-title">{t('footer.contactTitle')}</span>
 					<div class="footer-contact-links">
-						<a class="footer-contact-link" href="mailto:otto@200iq.eu" aria-label="Email otto@200iq.eu">
+						<a class="footer-contact-link" href={`mailto:${t('footer.email')}`} aria-label={t('footer.emailAriaLabel')}>
 							<svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
 								<path
 									fill="currentColor"
 									d="M4 6h16a2 2 0 0 1 2 2v.24l-10 6.25-10-6.25V8a2 2 0 0 1 2-2Zm18 4.56V16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.44l9.47 5.92a1 1 0 0 0 1.06 0L22 10.56Z"
 								/>
 							</svg>
-							<span>otto@200iq.eu</span>
+							<span>{t('footer.email')}</span>
 						</a>
-						<a class="footer-contact-link" href="tel:+37126678242" aria-label="Call +371 26 678 242">
+						<a class="footer-contact-link" href={t('footer.phoneHref')} aria-label={t('footer.phoneAriaLabel')}>
 							<svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
 								<path
 									fill="currentColor"
 									d="M6.6 2h3.12a1 1 0 0 1 .98.8l.56 3.07a1 1 0 0 1-.29.91L8.86 8.9a15.08 15.08 0 0 0 6.24 6.24l2.12-2.11a1 1 0 0 1 .91-.29l3.07.56a1 1 0 0 1 .8.98v3.12a1 1 0 0 1-.9 1A17.6 17.6 0 0 1 4.5 3.9a1 1 0 0 1 1-.9Z"
 								/>
 							</svg>
-							<span>+371 26 678 242</span>
+							<span>{t('footer.phone')}</span>
 						</a>
 					</div>
 				</div>
 				<div class="footer-company-column">
-					<span class="footer-column-title">Company Details</span>
-					<div class="footer-company-details" aria-label="Company details">
-						<p class="footer-company-line footer-company-name">SIA &quot;OG Capital&quot;</p>
-						<p class="footer-company-line footer-company-meta">Registration No. 50203318251</p>
-						<p class="footer-company-line footer-company-address">Gaileņu iela 22, Riga, LV-1023, Latvia</p>
+					<span class="footer-column-title">{t('footer.companyTitle')}</span>
+					<div class="footer-company-details" aria-label={t('footer.companyAriaLabel')}>
+						<p class="footer-company-line footer-company-name">{t('footer.companyName')}</p>
+						<p class="footer-company-line footer-company-meta">{t('footer.registrationNo')}</p>
+						<p class="footer-company-line footer-company-address">{t('footer.companyAddress')}</p>
 					</div>
 				</div>
 			</div>
@@ -71,7 +71,6 @@ const facebookHref = 'https://www.facebook.com/people/200iq/61581955227968/';
 			<p class="footer-small">{t('footer.copyright')}</p>
 			<div class="footer-inline">
 				<p class="footer-small">{t('footer.builtFor')}</p>
-				<p class="footer-small">{t('footer.status')}</p>
 			</div>
 		</div>
 	</div>

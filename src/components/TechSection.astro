@@ -18,17 +18,206 @@ const dictionary = getDictionary(lang);
 			<p class="muted">{t('tech.body')}</p>
 		</div>
 		<div class="panel tech-panel">
-			<div class="metric-grid">
+			<tech-animated-grid class="metric-grid">
 				{
-					dictionary.tech.metrics.map((metric) => (
+					dictionary.tech.metrics.map((metric, index) => (
 						<div class="metric">
-							<p class="metric-value">{metric.value}</p>
+							<p class="metric-value">
+								<span
+									class="metric-value-text"
+									data-metric-kind={index === 0 ? 'custom-built' : 'delivery-time'}
+									data-metric-target={metric.value}
+								>
+									{metric.value}
+								</span>
+							</p>
 							<p class="metric-label">{metric.label}</p>
 						</div>
 					))
 				}
-			</div>
+			</tech-animated-grid>
 		</div>
 	</div>
 	<div class="section-divider is-bottom" aria-hidden="true"></div>
 </section>
+
+<script is:inline>
+	(() => {
+		if (customElements.get('tech-animated-grid')) {
+			return;
+		}
+
+		const parseTarget = (rawValue) => {
+			const raw = String(rawValue || '').trim();
+			const match = raw.match(/-?\d+(?:[.,]\d+)?/);
+			if (!match) return null;
+
+			const numberText = match[0];
+			const numberIndex = match.index || 0;
+			const prefix = raw.slice(0, numberIndex);
+			const suffix = raw.slice(numberIndex + numberText.length);
+			const decimalSeparator = numberText.includes(',') ? ',' : '.';
+			const decimalPart = numberText.includes('.') ? numberText.split('.')[1] : numberText.split(',')[1];
+			const decimals = decimalPart ? decimalPart.length : 0;
+			const target = Number.parseFloat(numberText.replace(',', '.'));
+
+			if (!Number.isFinite(target)) return null;
+
+			return { raw, target, prefix, suffix, decimals, decimalSeparator };
+		};
+
+		const formatValue = (value, decimals, decimalSeparator) => {
+			const fixed = value.toFixed(decimals);
+			return decimalSeparator === ',' ? fixed.replace('.', ',') : fixed;
+		};
+
+		const easeOut = (t) => 1 - (1 - t) ** 3;
+
+		const isInView = (element) => {
+			const rect = element.getBoundingClientRect();
+			const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+			return rect.top < vh * 0.88 && rect.bottom > vh * 0.12;
+		};
+
+		class TechAnimatedGridElement extends HTMLElement {
+			constructor() {
+				super();
+				this._triggered = false;
+				this._observer = null;
+				this._rafId = 0;
+				this._delayId = 0;
+				this._checkTrigger = this._checkTrigger.bind(this);
+			}
+
+			connectedCallback() {
+				if (this.dataset.techAnimated === 'true') return;
+
+				this._customBuiltEl = this.querySelector('[data-metric-kind="custom-built"]');
+				this._deliveryTimeEl = this.querySelector('[data-metric-kind="delivery-time"]');
+
+				if (!this._customBuiltEl || !this._deliveryTimeEl) {
+					return;
+				}
+
+				this._customBuiltTarget = this._customBuiltEl.dataset.metricTarget || this._customBuiltEl.textContent || '';
+				this._deliveryTimeTarget = this._deliveryTimeEl.dataset.metricTarget || this._deliveryTimeEl.textContent || '';
+
+				this._customBuiltParsed = parseTarget(this._customBuiltTarget);
+				this._deliveryTimeParsed = parseTarget(this._deliveryTimeTarget);
+
+				if (!this._customBuiltParsed || !this._deliveryTimeParsed) {
+					return;
+				}
+
+				this._customBuiltEl.textContent = this._customBuiltTarget;
+				this._deliveryTimeEl.textContent = this._deliveryTimeTarget;
+
+				if ('IntersectionObserver' in window) {
+					this._observer = new IntersectionObserver(
+						(entries) => {
+							for (const entry of entries) {
+								if (!entry.isIntersecting) continue;
+								this._triggerOnce();
+								break;
+							}
+						},
+						{
+							threshold: 0,
+							rootMargin: '0px 0px -10% 0px',
+						},
+					);
+					this._observer.observe(this);
+				}
+
+				window.addEventListener('scroll', this._checkTrigger, { passive: true });
+				window.addEventListener('resize', this._checkTrigger);
+				window.addEventListener('load', this._checkTrigger);
+				requestAnimationFrame(this._checkTrigger);
+			}
+
+			disconnectedCallback() {
+				this._cleanup();
+			}
+
+			_cleanup() {
+				if (this._observer) {
+					this._observer.disconnect();
+					this._observer = null;
+				}
+				window.removeEventListener('scroll', this._checkTrigger);
+				window.removeEventListener('resize', this._checkTrigger);
+				window.removeEventListener('load', this._checkTrigger);
+				if (this._delayId) {
+					clearTimeout(this._delayId);
+					this._delayId = 0;
+				}
+				if (this._rafId) {
+					cancelAnimationFrame(this._rafId);
+					this._rafId = 0;
+				}
+			}
+
+			_checkTrigger() {
+				const visible = isInView(this);
+				if (this._triggered || this.dataset.techAnimated === 'true') return;
+				if (!visible) return;
+				this._triggerOnce();
+			}
+
+			_triggerOnce() {
+				if (this._triggered || this.dataset.techAnimated === 'true') return;
+				this._triggered = true;
+
+				if (this._observer) {
+					this._observer.disconnect();
+					this._observer = null;
+				}
+				window.removeEventListener('scroll', this._checkTrigger);
+				window.removeEventListener('resize', this._checkTrigger);
+				window.removeEventListener('load', this._checkTrigger);
+
+				this._delayId = window.setTimeout(() => {
+					this._delayId = 0;
+					this._startAnimation();
+				}, 140);
+			}
+
+			_startAnimation() {
+				const startedAt = performance.now();
+				const durationMs = 1320;
+
+				const renderNumeric = (element, parsed, startValue, progress) => {
+					const numericValue = startValue + (parsed.target - startValue) * progress;
+					const roundedValue = parsed.decimals === 0 ? Math.round(numericValue) : numericValue;
+					element.textContent = `${parsed.prefix}${formatValue(roundedValue, parsed.decimals, parsed.decimalSeparator)}${parsed.suffix}`;
+				};
+
+				const finish = () => {
+					this._customBuiltEl.textContent = this._customBuiltTarget;
+					this._deliveryTimeEl.textContent = this._deliveryTimeTarget;
+					this.dataset.techAnimated = 'true';
+					this._rafId = 0;
+				};
+
+				const tick = (time) => {
+					const progress = Math.min((time - startedAt) / durationMs, 1);
+					const eased = easeOut(progress);
+
+					renderNumeric(this._customBuiltEl, this._customBuiltParsed, 0, eased);
+					renderNumeric(this._deliveryTimeEl, this._deliveryTimeParsed, 365, eased);
+
+					if (progress < 1) {
+						this._rafId = requestAnimationFrame(tick);
+						return;
+					}
+
+					finish();
+				};
+
+				this._rafId = requestAnimationFrame(tick);
+			}
+		}
+
+		customElements.define('tech-animated-grid', TechAnimatedGridElement);
+	})();
+</script>

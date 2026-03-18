@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { subscribeViewportRaf } from './viewportRaf';
 
 const PENDING_NAV_TARGET_KEY = '__pendingNavTarget';
 const PENDING_NAV_TRANSITION_KEY = '__pendingNavTransition';
+const LOCALE_STORAGE_KEY = 'preferredLocalePreview';
 
 function getTargetUrl(href) {
 	if (!href) return null;
@@ -42,12 +43,26 @@ export default function NavMenuIsland({
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isScrolled, setIsScrolled] = useState(false);
-	const showLocaleLinks = Array.isArray(localeLinks) && localeLinks.length > 1;
+	const [isLocaleMenuOpen, setIsLocaleMenuOpen] = useState(false);
+	const localeMenuId = useId();
+	const availableLocales = Array.isArray(localeLinks) ? localeLinks : [];
+	const showLocaleLinks = availableLocales.length > 1;
 	const boundsRef = useRef({
 		releasePoint: 20,
 		viewportWidth: 0,
 		viewportHeight: 0,
 	});
+	const localeMenuRef = useRef(null);
+	const defaultLocaleOption = (
+		availableLocales.find((locale) => locale.code === currentLocale)
+		|| availableLocales[0]
+		|| null
+	);
+	const [selectedLocaleCode, setSelectedLocaleCode] = useState(defaultLocaleOption?.code ?? currentLocale);
+	const selectedLocale = (
+		availableLocales.find((locale) => locale.code === selectedLocaleCode)
+		|| defaultLocaleOption
+	);
 
 	useEffect(() => {
 		const measureBounds = () => {
@@ -90,16 +105,72 @@ export default function NavMenuIsland({
 		return subscribeViewportRaf(update);
 	}, []);
 
+	useEffect(() => {
+		if (!showLocaleLinks) {
+			return undefined;
+		}
+
+		try {
+			const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+			if (storedLocale && availableLocales.some((locale) => locale.code === storedLocale)) {
+				setSelectedLocaleCode(storedLocale);
+			}
+		} catch {
+			// Ignore storage failures and keep the current locale visible.
+		}
+
+		return undefined;
+	}, [availableLocales, showLocaleLinks]);
+
+	useEffect(() => {
+		if (!isLocaleMenuOpen) {
+			return undefined;
+		}
+
+		const handlePointerDown = (event) => {
+			if (!localeMenuRef.current?.contains(event.target)) {
+				setIsLocaleMenuOpen(false);
+			}
+		};
+
+		const handleKeyDown = (event) => {
+			if (event.key === 'Escape') {
+				setIsLocaleMenuOpen(false);
+			}
+		};
+
+		document.addEventListener('pointerdown', handlePointerDown);
+		document.addEventListener('keydown', handleKeyDown);
+
+		return () => {
+			document.removeEventListener('pointerdown', handlePointerDown);
+			document.removeEventListener('keydown', handleKeyDown);
+		};
+	}, [isLocaleMenuOpen]);
+
+	const handleLocaleSelect = (localeCode) => {
+		setSelectedLocaleCode(localeCode);
+		setIsLocaleMenuOpen(false);
+
+		try {
+			window.localStorage.setItem(LOCALE_STORAGE_KEY, localeCode);
+		} catch {
+			// Ignore storage failures and keep the selection in memory only.
+		}
+	};
+
 	const handleSectionLinkClick = (event, link) => {
 		const targetId = link?.targetId;
 		if (!targetId) {
 			setIsOpen(false);
+			setIsLocaleMenuOpen(false);
 			return;
 		}
 
 		const url = getTargetUrl(link.href);
 		if (!url || url.origin !== window.location.origin) {
 			setIsOpen(false);
+			setIsLocaleMenuOpen(false);
 			return;
 		}
 
@@ -110,6 +181,7 @@ export default function NavMenuIsland({
 		if (isSamePage) {
 			event.preventDefault();
 			setIsOpen(false);
+			setIsLocaleMenuOpen(false);
 			scrollToTargetId(targetId);
 			return;
 		}
@@ -117,6 +189,7 @@ export default function NavMenuIsland({
 		window.sessionStorage.setItem(PENDING_NAV_TARGET_KEY, targetId);
 		window.sessionStorage.setItem(PENDING_NAV_TRANSITION_KEY, '1');
 		setIsOpen(false);
+		setIsLocaleMenuOpen(false);
 	};
 
 	const handleBrandClick = (event) => {
@@ -124,6 +197,7 @@ export default function NavMenuIsland({
 		const url = getTargetUrl(anchor?.getAttribute('href'));
 		if (!url) {
 			setIsOpen(false);
+			setIsLocaleMenuOpen(false);
 			return;
 		}
 
@@ -133,6 +207,7 @@ export default function NavMenuIsland({
 
 		if (!isSamePage) {
 			setIsOpen(false);
+			setIsLocaleMenuOpen(false);
 			return;
 		}
 
@@ -140,6 +215,7 @@ export default function NavMenuIsland({
 		window.sessionStorage.removeItem(PENDING_NAV_TARGET_KEY);
 		window.sessionStorage.removeItem(PENDING_NAV_TRANSITION_KEY);
 		setIsOpen(false);
+		setIsLocaleMenuOpen(false);
 
 		if (window.__lenis && typeof window.__lenis.scrollTo === 'function') {
 			window.__lenis.scrollTo(0, { immediate: true, force: true });
@@ -183,27 +259,59 @@ export default function NavMenuIsland({
 				</nav>
 
 				<div className="nav-actions">
-					{showLocaleLinks && (
-						<div className="language-links" aria-label={languageLabel}>
-							{localeLinks.map((locale) => (
-								<a
-									key={locale.code}
-									href={locale.href}
-									lang={locale.code}
-									className={`lang-link ${locale.code === currentLocale ? 'is-active' : ''}`}
-								>
-									{locale.code}
-								</a>
-							))}
-						</div>
-					)}
 					<a href={`/${currentLocale}/contact`} className="btn btn-primary desktop-only">
 						{ctaLabel}
 					</a>
-					<button
-						type="button"
-						className="nav-toggle"
-						onClick={() => setIsOpen((prev) => !prev)}
+					{showLocaleLinks && selectedLocale && (
+						<div className="locale-menu" ref={localeMenuRef}>
+							<button
+								type="button"
+								className={`locale-trigger ${isLocaleMenuOpen ? 'is-open' : ''}`}
+								aria-label={languageLabel}
+								aria-haspopup="listbox"
+								aria-expanded={isLocaleMenuOpen}
+								aria-controls={localeMenuId}
+								onClick={() => setIsLocaleMenuOpen((prev) => !prev)}
+							>
+								<span
+									className={`locale-flag fi fi-${selectedLocale.flagCode}`}
+									aria-hidden="true"
+								/>
+								<span className="locale-trigger-chevron" aria-hidden="true" />
+							</button>
+
+							<div
+								id={localeMenuId}
+								className={`locale-popover ${isLocaleMenuOpen ? 'is-open' : ''}`}
+								role="listbox"
+								aria-label={languageLabel}
+							>
+								{availableLocales.map((locale) => (
+									<button
+										key={locale.code}
+										type="button"
+										role="option"
+										aria-selected={locale.code === selectedLocale.code}
+										className={`locale-option ${locale.code === selectedLocale.code ? 'is-active' : ''}`}
+										onClick={() => handleLocaleSelect(locale.code)}
+									>
+										<span
+											className={`locale-option-flag fi fi-${locale.flagCode}`}
+											aria-hidden="true"
+										/>
+										<span className="locale-option-label">{locale.label}</span>
+									</button>
+								))}
+							</div>
+						</div>
+					)}
+						<button
+							type="button"
+							className="nav-toggle"
+							onClick={() => {
+								setIsLocaleMenuOpen(false);
+								setIsOpen((prev) => !prev);
+							}}
 						aria-expanded={isOpen}
 						aria-label={isOpen ? closeMenuLabel : openMenuLabel}
 					>
