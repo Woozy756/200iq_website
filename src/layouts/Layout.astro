@@ -27,6 +27,7 @@ const getLocalizedPath = (locale: Lang) => {
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="light" />
 		<meta name="description" content={description} />
 		<meta name="generator" content={Astro.generator} />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -56,6 +57,11 @@ const getLocalizedPath = (locale: Lang) => {
 </html>
 
 <style is:global>
+	/* Prevent Chromium-based auto darkening (Samsung Internet "Force Dark"). */
+	:root {
+		color-scheme: only light;
+	}
+
 	/* ── View Transition: Premium Crossfade ── */
 	::view-transition-old(root) {
 		animation: vt-fade-out 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;

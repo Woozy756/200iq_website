@@ -51,10 +51,9 @@ export default function MountainProcessIsland({ steps = [] }) {
 	const containerRef = useRef(null);
 	const dotsRef = useRef(null);
 	const brainGlowRef = useRef(null);
-	const widePathRefs = useRef([]);
-	const midPathRefs = useRef([]);
-	const corePathRefs = useRef([]);
-	const progressPathRefs = useRef([]);
+	const brainGlowSvgRef = useRef(null);
+	const needsNodeRebindRef = useRef(true);
+	const prefersReducedMotionRef = useRef(false);
 	const cardRefs = useRef([]);
 	const targetProgressRef = useRef(0);
 	const currentProgressRef = useRef(0);
@@ -126,36 +125,119 @@ export default function MountainProcessIsland({ steps = [] }) {
 		let viewportWidth = 0;
 		let viewportHeight = 0;
 
+		const hasConnectedNode = (node) => Boolean(node && document.contains(node));
+
+		const invalidateRenderCache = () => {
+			renderCacheRef.current.coreDashOffset = '';
+			renderCacheRef.current.glowDashOffset = '';
+			renderCacheRef.current.revealVisibility = '';
+			renderCacheRef.current.cardState = [];
+			renderCacheRef.current.lastRenderedProgress = -1;
+			cardLayoutRef.current = { mode: '', entries: [] };
+		};
+
+		const resolveLiveNodes = () => {
+			const currentContainer = containerRef.current;
+			const hasLiveContainer = hasConnectedNode(currentContainer);
+
+			if (!needsNodeRebindRef.current && hasLiveContainer) {
+				return true;
+			}
+
+			if (hasLiveContainer) {
+				let shouldInvalidate = false;
+				if (!hasConnectedNode(dotsRef.current)) {
+					dotsRef.current = currentContainer.querySelector('.process-dots');
+					shouldInvalidate = true;
+				}
+				if (!hasConnectedNode(brainGlowRef.current)) {
+					brainGlowRef.current = currentContainer.querySelector('.process-brain-glow');
+					shouldInvalidate = true;
+				}
+				if (!hasConnectedNode(brainGlowSvgRef.current)) {
+					brainGlowSvgRef.current = currentContainer.querySelector('.process-brain-svg-glow');
+					shouldInvalidate = true;
+				}
+				const hasValidCards =
+					cardRefs.current.length === steps.length &&
+					cardRefs.current.every((node) => hasConnectedNode(node));
+				if (!hasValidCards) {
+					cardRefs.current = Array.from(currentContainer.querySelectorAll('.process-step'));
+					shouldInvalidate = true;
+				}
+				if (shouldInvalidate) {
+					invalidateRenderCache();
+				}
+				needsNodeRebindRef.current = false;
+				return true;
+			}
+
+			const candidates = document.querySelectorAll('.process-scroll');
+			let liveContainer = null;
+			for (let index = candidates.length - 1; index >= 0; index -= 1) {
+				const node = candidates[index];
+				if (hasConnectedNode(node)) {
+					liveContainer = node;
+					break;
+				}
+			}
+
+			if (!liveContainer) {
+				containerRef.current = null;
+				dotsRef.current = null;
+				brainGlowRef.current = null;
+				brainGlowSvgRef.current = null;
+				cardRefs.current = [];
+				needsNodeRebindRef.current = true;
+				return false;
+			}
+
+			const wasDifferentContainer = containerRef.current !== liveContainer;
+			containerRef.current = liveContainer;
+			dotsRef.current = liveContainer.querySelector('.process-dots');
+			brainGlowRef.current = liveContainer.querySelector('.process-brain-glow');
+			brainGlowSvgRef.current = liveContainer.querySelector('.process-brain-svg-glow');
+			cardRefs.current = Array.from(liveContainer.querySelectorAll('.process-step'));
+			if (wasDifferentContainer) {
+				invalidateRenderCache();
+			}
+			needsNodeRebindRef.current = false;
+			return true;
+		};
+
 		const startTick = () => {
 			if (!rafIdRef.current) {
 				rafIdRef.current = requestAnimationFrame(tick);
 			}
 		};
 
-		const applyDashOffset = (group, dashOffset) => {
-			for (let index = 0; index < group.length; index += 1) {
-				const node = group[index];
-				if (node) {
-					node.style.strokeDashoffset = dashOffset;
-				}
-			}
-		};
-
 		const setPathDashoffset = (progress, viewportWidth) => {
 			const isDesktop = viewportWidth > 980;
 			const coreDashOffset = `${(1 - progress).toFixed(3)}`;
-			const glowDashOffset = `${(1 - progress).toFixed(isDesktop ? 2 : 3)}`;
+			const glowDashOffset = `${(1 - progress).toFixed(2)}`;
 
 			if (renderCacheRef.current.coreDashOffset !== coreDashOffset) {
 				renderCacheRef.current.coreDashOffset = coreDashOffset;
-				applyDashOffset(corePathRefs.current, coreDashOffset);
-				applyDashOffset(progressPathRefs.current, coreDashOffset);
+				if (brainGlowSvgRef.current) {
+					brainGlowSvgRef.current.style.setProperty('--process-core-dashoffset', coreDashOffset);
+				}
+			}
+
+			if (!isDesktop) {
+				if (renderCacheRef.current.glowDashOffset !== '1') {
+					renderCacheRef.current.glowDashOffset = '1';
+					if (brainGlowSvgRef.current) {
+						brainGlowSvgRef.current.style.setProperty('--process-glow-dashoffset', '1');
+					}
+				}
+				return;
 			}
 
 			if (renderCacheRef.current.glowDashOffset !== glowDashOffset) {
 				renderCacheRef.current.glowDashOffset = glowDashOffset;
-				applyDashOffset(widePathRefs.current, glowDashOffset);
-				applyDashOffset(midPathRefs.current, glowDashOffset);
+				if (brainGlowSvgRef.current) {
+					brainGlowSvgRef.current.style.setProperty('--process-glow-dashoffset', glowDashOffset);
+				}
 			}
 		};
 
@@ -233,6 +315,10 @@ export default function MountainProcessIsland({ steps = [] }) {
 		};
 
 		const renderProgress = (progress) => {
+			if (!resolveLiveNodes()) {
+				return;
+			}
+
 			const revealVisibility = clamp((progress - 0.01) / 0.06, 0, 1);
 			const revealValue = revealVisibility.toFixed(3);
 			const viewportWidth = window.innerWidth || 1280;
@@ -252,6 +338,9 @@ export default function MountainProcessIsland({ steps = [] }) {
 		};
 
 		const measureBounds = () => {
+			if (!resolveLiveNodes()) {
+				return;
+			}
 			if (!containerRef.current) {
 				return;
 			}
@@ -279,7 +368,7 @@ export default function MountainProcessIsland({ steps = [] }) {
 			const raw = ((scrollY - start) / span) * progressGain;
 			const nextTarget = clamp(raw, 0, 1);
 
-			if (shouldSnapToProgress()) {
+			if (shouldSnapToProgress() || prefersReducedMotionRef.current) {
 				targetProgressRef.current = nextTarget;
 				currentProgressRef.current = nextTarget;
 				renderCacheRef.current.lastRenderedProgress = nextTarget;
@@ -298,6 +387,13 @@ export default function MountainProcessIsland({ steps = [] }) {
 
 		const tick = () => {
 			rafIdRef.current = 0;
+			if (prefersReducedMotionRef.current) {
+				return;
+			}
+			if (!resolveLiveNodes()) {
+				return;
+			}
+
 			const target = targetProgressRef.current;
 			const current = currentProgressRef.current;
 			const next = current + (target - current) * 0.2;
@@ -321,6 +417,10 @@ export default function MountainProcessIsland({ steps = [] }) {
 		};
 
 		const handleViewport = () => {
+			if (!resolveLiveNodes()) {
+				return;
+			}
+
 			const nextWidth = window.innerWidth || 0;
 			const nextHeight = window.innerHeight || 0;
 			const viewportChanged = nextWidth !== viewportWidth || nextHeight !== viewportHeight;
@@ -330,13 +430,93 @@ export default function MountainProcessIsland({ steps = [] }) {
 				cardLayoutRef.current = { mode: '', entries: [] };
 				measureBounds();
 			}
+
+			if (!isNearViewport()) {
+				cancelAnimationFrame(rafIdRef.current);
+				rafIdRef.current = 0;
+				return;
+			}
+
 			readTarget();
 		};
 
+		const isNearViewport = () => {
+			if (!resolveLiveNodes()) {
+				return false;
+			}
+			if (!containerRef.current) {
+				return false;
+			}
+			const rect = containerRef.current.getBoundingClientRect();
+			const viewportHeight = window.innerHeight || 0;
+			return rect.bottom > -viewportHeight * 0.25 && rect.top < viewportHeight * 1.25;
+		};
+
+		const applyReducedMotion = (matches) => {
+			prefersReducedMotionRef.current = matches;
+			if (isNearViewport()) {
+				readTarget();
+			}
+		};
+
+		let removeReducedMotionListener = () => {};
+		if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+			const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+			applyReducedMotion(reducedMotionQuery.matches);
+			const onReducedMotionChange = (event) => {
+				applyReducedMotion(event.matches);
+			};
+
+			if (typeof reducedMotionQuery.addEventListener === 'function') {
+				reducedMotionQuery.addEventListener('change', onReducedMotionChange);
+				removeReducedMotionListener = () => {
+					reducedMotionQuery.removeEventListener('change', onReducedMotionChange);
+				};
+			} else if (typeof reducedMotionQuery.addListener === 'function') {
+				reducedMotionQuery.addListener(onReducedMotionChange);
+				removeReducedMotionListener = () => {
+					reducedMotionQuery.removeListener(onReducedMotionChange);
+				};
+			}
+		}
+
+		const syncAfterTransition = () => {
+			needsNodeRebindRef.current = true;
+			resolveLiveNodes();
+			measureBounds();
+			if (!isNearViewport()) {
+				cancelAnimationFrame(rafIdRef.current);
+				rafIdRef.current = 0;
+				return;
+			}
+			window[PROCESS_SNAP_KEY] = true;
+			handleViewport();
+		};
+
+		const resyncAfterTransition = () => {
+			syncAfterTransition();
+			requestAnimationFrame(() => {
+				syncAfterTransition();
+				requestAnimationFrame(() => {
+					syncAfterTransition();
+				});
+			});
+		};
+		measureBounds();
+		handleViewport();
+
 		const unsubscribe = subscribeViewportRaf(handleViewport);
+
+		document.addEventListener('astro:after-swap', resyncAfterTransition);
+		document.addEventListener('astro:page-load', resyncAfterTransition);
+		window.addEventListener('pageshow', resyncAfterTransition);
 
 		return () => {
 			unsubscribe();
+			document.removeEventListener('astro:after-swap', resyncAfterTransition);
+			document.removeEventListener('astro:page-load', resyncAfterTransition);
+			window.removeEventListener('pageshow', resyncAfterTransition);
+			removeReducedMotionListener();
 			cancelAnimationFrame(rafIdRef.current);
 		};
 	}, [ranges, steps.length]);
@@ -381,17 +561,24 @@ export default function MountainProcessIsland({ steps = [] }) {
 					className="process-brain-glow"
 					aria-hidden="true"
 					ref={brainGlowRef}
-					style={{ '--process-reveal-visibility': 0 }}
+					style={{
+						'--process-reveal-visibility': 0,
+					}}
 				>
-					<svg className="process-brain-svg process-brain-svg-glow" viewBox="-96 -96 704 704">
+					<svg
+						className="process-brain-svg process-brain-svg-glow"
+						viewBox="-96 -96 704 704"
+						ref={brainGlowSvgRef}
+						style={{
+							'--process-core-dashoffset': 1,
+							'--process-glow-dashoffset': 1,
+						}}
+					>
 						{brainPaths.map((path, index) => (
 							<path
 								className="process-brain-path-glow process-brain-path-glow-wide"
 								d={path}
 								key={`brain-wide-${index}`}
-								ref={(node) => {
-									widePathRefs.current[index] = node;
-								}}
 								pathLength="1"
 								strokeDasharray="1"
 								strokeDashoffset="1"
@@ -402,9 +589,6 @@ export default function MountainProcessIsland({ steps = [] }) {
 								className="process-brain-path-glow process-brain-path-glow-mid"
 								d={path}
 								key={`brain-mid-${index}`}
-								ref={(node) => {
-									midPathRefs.current[index] = node;
-								}}
 								pathLength="1"
 								strokeDasharray="1"
 								strokeDashoffset="1"
@@ -415,9 +599,6 @@ export default function MountainProcessIsland({ steps = [] }) {
 								className="process-brain-path-glow process-brain-path-glow-core"
 								d={path}
 								key={`brain-core-${index}`}
-								ref={(node) => {
-									corePathRefs.current[index] = node;
-								}}
 								pathLength="1"
 								strokeDasharray="1"
 								strokeDashoffset="1"
@@ -428,9 +609,6 @@ export default function MountainProcessIsland({ steps = [] }) {
 								className="process-brain-path-progress"
 								d={path}
 								key={`brain-progress-${index}`}
-								ref={(node) => {
-									progressPathRefs.current[index] = node;
-								}}
 								pathLength="1"
 								strokeDasharray="1"
 								strokeDashoffset="1"
