@@ -219,6 +219,9 @@ const dictionary = getDictionary(lang);
 			_startAnimation() {
 				const startedAt = performance.now();
 				const durationMs = 1320;
+				const isMobile = window.matchMedia('(max-width: 900px)').matches;
+				const minFrameGapMs = isMobile ? 34 : 0;
+				let lastPaintAt = startedAt;
 				let lastShufflePhase = -1;
 				let lastShuffleRevealedCount = -1;
 				this.dataset.statsAnimating = 'true';
@@ -291,6 +294,13 @@ const dictionary = getDictionary(lang);
 
 				const tick = (time) => {
 					const progress = Math.min((time - startedAt) / durationMs, 1);
+
+					if (progress < 1 && minFrameGapMs > 0 && time - lastPaintAt < minFrameGapMs) {
+						this._rafId = requestAnimationFrame(tick);
+						return;
+					}
+					lastPaintAt = time;
+
 					const eased = easeOut(progress);
 
 					renderNumeric(this._uptimeEl, this._uptimeParsed, 0, eased);

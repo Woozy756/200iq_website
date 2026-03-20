@@ -2119,6 +2119,11 @@ stats-animated-grid[data-stats-animating="true"] .stat-3 .stat-value {
     filter: none;
 }
 
+stats-animated-grid[data-stats-animating="true"] .stat-value-text {
+    text-wrap: nowrap;
+    hyphens: none;
+}
+
 /* ── Network band ── */
 .network-band {
     background: linear-gradient(150deg, #e1a140 0%, #efcfa0 45%, #914110 100%);
