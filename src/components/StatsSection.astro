@@ -177,6 +177,7 @@ const dictionary = getDictionary(lang);
 					this._observer.disconnect();
 					this._observer = null;
 				}
+				delete this.dataset.statsAnimating;
 				window.removeEventListener('scroll', this._checkTrigger);
 				window.removeEventListener('resize', this._checkTrigger);
 				window.removeEventListener('load', this._checkTrigger);
@@ -218,22 +219,35 @@ const dictionary = getDictionary(lang);
 			_startAnimation() {
 				const startedAt = performance.now();
 				const durationMs = 1320;
+				let lastShufflePhase = -1;
+				let lastShuffleRevealedCount = -1;
+				this.dataset.statsAnimating = 'true';
 
 				const renderNumeric = (element, parsed, startValue, progress) => {
 					const numericValue = startValue + (parsed.target - startValue) * progress;
 					const roundedValue = parsed.decimals === 0 ? Math.round(numericValue) : numericValue;
-					element.textContent = `${parsed.prefix}${formatValue(roundedValue, parsed.decimals, parsed.decimalSeparator)}${parsed.suffix}`;
+					const nextText = `${parsed.prefix}${formatValue(roundedValue, parsed.decimals, parsed.decimalSeparator)}${parsed.suffix}`;
+					if (element.textContent !== nextText) {
+						element.textContent = nextText;
+					}
 				};
 
 				const renderShuffle = (element, targetRaw, progress) => {
 					if (progress >= 1) {
-						element.textContent = targetRaw;
+						if (element.textContent !== targetRaw) {
+							element.textContent = targetRaw;
+						}
 						return;
 					}
 
 					const revealableCount = this._shuffleRevealOrder.length;
 					const revealedCount = Math.floor(revealableCount * Math.min(1, progress * 1.08));
 					const phase = Math.floor(progress * 18);
+					if (phase === lastShufflePhase && revealedCount === lastShuffleRevealedCount) {
+						return;
+					}
+					lastShufflePhase = phase;
+					lastShuffleRevealedCount = revealedCount;
 					let nextText = '';
 
 					for (let index = 0; index < this._shuffleChars.length; index += 1) {
@@ -250,7 +264,7 @@ const dictionary = getDictionary(lang);
 						}
 
 						const revealRank = this._shuffleRevealRank.get(index);
-						if (revealRank < revealedCount) {
+						if (revealRank !== undefined && revealRank < revealedCount) {
 							nextText += character;
 							continue;
 						}
@@ -260,7 +274,9 @@ const dictionary = getDictionary(lang);
 						nextText += pool[glyphIndex];
 					}
 
-					element.textContent = nextText;
+					if (element.textContent !== nextText) {
+						element.textContent = nextText;
+					}
 				};
 
 				const finish = () => {
@@ -268,6 +284,7 @@ const dictionary = getDictionary(lang);
 					this._latencyEl.textContent = this._latencyTarget;
 					this._reviewsEl.textContent = this._reviewsTarget;
 					this._shuffleEl.textContent = this._shuffleTarget;
+					delete this.dataset.statsAnimating;
 					this.dataset.statsAnimated = 'true';
 					this._rafId = 0;
 				};

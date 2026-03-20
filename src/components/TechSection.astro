@@ -189,7 +189,10 @@ const dictionary = getDictionary(lang);
 				const renderNumeric = (element, parsed, startValue, progress) => {
 					const numericValue = startValue + (parsed.target - startValue) * progress;
 					const roundedValue = parsed.decimals === 0 ? Math.round(numericValue) : numericValue;
-					element.textContent = `${parsed.prefix}${formatValue(roundedValue, parsed.decimals, parsed.decimalSeparator)}${parsed.suffix}`;
+					const nextText = `${parsed.prefix}${formatValue(roundedValue, parsed.decimals, parsed.decimalSeparator)}${parsed.suffix}`;
+					if (element.textContent !== nextText) {
+						element.textContent = nextText;
+					}
 				};
 
 				const finish = () => {
