@@ -14,6 +14,69 @@ interface Props {
 const { lang, title, description } = Astro.props;
 const activeLang = normalizeLang(lang);
 const currentPath = Astro.url.pathname;
+const siteOrigin = (Astro.site?.toString() ?? Astro.url.origin).replace(/\/$/, '');
+const canonicalUrl = new URL(currentPath, siteOrigin).toString();
+const socialImageUrl = new URL('/200iq_logo.png', siteOrigin).toString();
+const structuredData = {
+	'@context': 'https://schema.org',
+	'@graph': [
+		{
+			'@type': 'Organization',
+			'@id': `${siteOrigin}/#organization`,
+			name: '200IQ',
+			url: siteOrigin,
+			logo: {
+				'@type': 'ImageObject',
+				url: socialImageUrl,
+			},
+			email: 'oto@200iq.eu',
+			telephone: '+37126678242',
+			address: {
+				'@type': 'PostalAddress',
+				streetAddress: 'Gaileņu iela 22',
+				addressLocality: 'Riga',
+				postalCode: 'LV-1023',
+				addressCountry: 'LV',
+			},
+		},
+		{
+			'@type': 'WebSite',
+			'@id': `${siteOrigin}/#website`,
+			url: siteOrigin,
+			name: '200IQ',
+			inLanguage: locales,
+			publisher: {
+				'@id': `${siteOrigin}/#organization`,
+			},
+		},
+		{
+			'@type': 'WebPage',
+			'@id': `${canonicalUrl}#webpage`,
+			url: canonicalUrl,
+			name: title,
+			description,
+			inLanguage: activeLang,
+			isPartOf: {
+				'@id': `${siteOrigin}/#website`,
+			},
+			about: {
+				'@id': `${siteOrigin}/#organization`,
+			},
+			primaryImageOfPage: {
+				'@type': 'ImageObject',
+				url: socialImageUrl,
+			},
+		},
+	],
+};
+const ogLocaleMap: Record<Lang, string> = {
+	en: 'en_US',
+	lv: 'lv_LV',
+	ru: 'ru_RU',
+	et: 'et_EE',
+};
+const activeOgLocale = ogLocaleMap[activeLang];
+const alternateOgLocales = locales.filter((locale) => locale !== activeLang).map((locale) => ogLocaleMap[locale]);
 
 const getLocalizedPath = (locale: Lang) => {
 	const segments = currentPath.split('/').filter(Boolean);
@@ -30,13 +93,33 @@ const getLocalizedPath = (locale: Lang) => {
 		<meta name="color-scheme" content="light" />
 		<meta name="description" content={description} />
 		<meta name="generator" content={Astro.generator} />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		{
-			locales.map((locale) => (
-				<link rel="alternate" hreflang={locale} href={`${Astro.url.origin}${getLocalizedPath(locale)}`} />
-			))
-		}
-		<link rel="alternate" hreflang="x-default" href={`${Astro.url.origin}${getLocalizedPath(defaultLang)}`} />
+		<link rel="canonical" href={canonicalUrl} />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="200IQ" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonicalUrl} />
+		<meta property="og:image" content={socialImageUrl} />
+		<meta property="og:image:alt" content="200IQ logo" />
+		<meta property="og:locale" content={activeOgLocale} />
+			{
+				alternateOgLocales.map((locale) => (
+					<meta property="og:locale:alternate" content={locale} />
+				))
+			}
+			<meta name="twitter:card" content="summary_large_image" />
+			<meta name="twitter:title" content={title} />
+			<meta name="twitter:description" content={description} />
+			<meta name="twitter:image" content={socialImageUrl} />
+			<meta name="twitter:image:alt" content="200IQ logo" />
+			<script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+			<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+			{
+				locales.map((locale) => (
+					<link rel="alternate" hreflang={locale} href={`${siteOrigin}${getLocalizedPath(locale)}`} />
+				))
+			}
+			<link rel="alternate" hreflang="x-default" href={`${siteOrigin}${getLocalizedPath(defaultLang)}`} />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link
