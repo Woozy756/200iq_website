@@ -1510,6 +1510,20 @@ main {
     height: 400vh;
     height: 400svh;
     isolation: isolate;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+.svcx-sticky::before,
+.svcx-sticky::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.svcx-sticky::before {
+    z-index: 0;
     background:
         radial-gradient(
             108% 64% at 50% 32%,
@@ -1528,13 +1542,11 @@ main {
             rgba(27, 11, 4, 0.97) 66%,
             rgba(8, 3, 1, 0.34) 100%
         );
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
-.svcx-scroll::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
+.svcx-sticky::after {
     background: linear-gradient(
         180deg,
         rgba(8, 3, 1, 0) 0%,
@@ -1543,6 +1555,8 @@ main {
         rgba(8, 3, 1, 0) 100%
     );
     z-index: 0;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 .svcx-sticky {
@@ -1557,6 +1571,9 @@ main {
     justify-content: center;
     padding: clamp(1rem, 2.5vh, 2rem) 0;
     isolation: isolate;
+    contain: paint;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 .svcx-dots {
@@ -1795,7 +1812,8 @@ main {
 .tech-shell {
     position: relative;
     isolation: isolate;
-    overflow: clip;
+    overflow: hidden;
+    background-color: #120703;
     background:
         radial-gradient(
             80% 90% at 18% 30%,
@@ -1976,7 +1994,8 @@ main {
 .stats-shell {
     position: relative;
     isolation: isolate;
-    overflow: clip;
+    overflow: hidden;
+    background-color: #140804;
     border-block: 1px solid rgba(225, 161, 64, 0.24);
     background:
         radial-gradient(
@@ -2806,8 +2825,8 @@ stats-animated-grid[data-stats-animating="true"] .stat-value-text {
     }
 
     .svcx-scroll {
-        height: 420vh;
-        height: 420svh;
+        height: 410vh;
+        height: 410svh;
     }
 
     .svcx-card {
