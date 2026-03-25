@@ -5,11 +5,13 @@
 	const pendingNavTargetKey = '__pendingNavTarget';
 	const pendingNavTransitionKey = '__pendingNavTransition';
 	const processSnapKey = '__forceProcessSnap';
+	const LENIS_DESKTOP_MIN_WIDTH = 981;
 
 	function createController() {
 		let lenis = null;
 		let afterSwapFrame = 0;
 		let pageLoadFrame = 0;
+		let viewportMode = null;
 
 		const cancelFrame = (frameId) => {
 			if (frameId) {
@@ -23,7 +25,26 @@
 			pageLoadFrame = cancelFrame(pageLoadFrame);
 		};
 
+		const isDesktopViewport = () => (window.innerWidth || 0) >= LENIS_DESKTOP_MIN_WIDTH;
+
+		const clearLenisClasses = () => {
+			document.documentElement.classList.remove('lenis', 'lenis-smooth', 'lenis-stopped');
+			document.body.classList.remove('lenis', 'lenis-smooth', 'lenis-stopped');
+		};
+
+		const destroyLenis = () => {
+			if (!lenis) return;
+			lenis.destroy();
+			lenis = null;
+			delete window.__lenis;
+			clearLenisClasses();
+		};
+
 		const getLenis = () => {
+			if (!isDesktopViewport()) {
+				return null;
+			}
+
 			if (lenis) {
 				return lenis;
 			}
@@ -45,6 +66,7 @@
 
 		const syncLenis = () => {
 			const instance = getLenis();
+			if (!instance) return;
 			instance.resize();
 			instance.scrollTo(window.scrollY || window.pageYOffset || 0, {
 				immediate: true,
@@ -59,14 +81,32 @@
 				window[processSnapKey] = true;
 			}
 
-			getLenis().scrollTo(target, {
-				immediate: true,
-				force: true,
+			const instance = getLenis();
+			if (instance) {
+				instance.scrollTo(target, {
+					immediate: true,
+					force: true,
+				});
+				return;
+			}
+
+			target.scrollIntoView({
+				behavior: 'auto',
+				block: 'start',
 			});
 		};
 
 		const withViewTransition = (work) => {
 			const instance = getLenis();
+			if (!instance) {
+				if (typeof document.startViewTransition === 'function') {
+					document.startViewTransition(work);
+					return;
+				}
+				work();
+				return;
+			}
+
 			instance.stop();
 
 			if (typeof document.startViewTransition === 'function') {
@@ -108,6 +148,19 @@
 			});
 		};
 
+		const refreshLenisMode = () => {
+			const isDesktop = isDesktopViewport();
+			if (viewportMode === isDesktop) return;
+			viewportMode = isDesktop;
+
+			if (isDesktop) {
+				syncLenis();
+				return;
+			}
+
+			destroyLenis();
+		};
+
 		const handleBeforeSwap = () => {
 			clearFrames();
 			if (!lenis) return;
@@ -128,6 +181,7 @@
 		const handlePageLoad = () => {
 			pageLoadFrame = cancelFrame(pageLoadFrame);
 			pageLoadFrame = requestAnimationFrame(() => {
+				refreshLenisMode();
 				syncLenis();
 				consumePendingTarget();
 			});
@@ -141,7 +195,7 @@
 				});
 			};
 
-			getLenis();
+			refreshLenisMode();
 			handlePageLoad();
 		};
 
@@ -151,14 +205,11 @@
 			document.removeEventListener('astro:after-swap', handleAfterSwap);
 			document.removeEventListener('astro:page-load', handlePageLoad);
 			window.removeEventListener('pageshow', handlePageLoad);
+			window.removeEventListener('resize', refreshLenisMode);
 			window.removeEventListener('beforeunload', destroy);
 
-			if (lenis) {
-				lenis.destroy();
-				lenis = null;
-			}
+			destroyLenis();
 
-			delete window.__lenis;
 			delete window.__jumpToTargetWithTransition;
 			delete window[CONTROLLER_KEY];
 		};
@@ -167,6 +218,7 @@
 		document.addEventListener('astro:after-swap', handleAfterSwap);
 		document.addEventListener('astro:page-load', handlePageLoad);
 		window.addEventListener('pageshow', handlePageLoad);
+		window.addEventListener('resize', refreshLenisMode);
 		window.addEventListener('beforeunload', destroy);
 
 		return {

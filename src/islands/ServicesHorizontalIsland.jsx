@@ -9,6 +9,32 @@ function easeOutCubic(value) {
 	return 1 - (1 - value) ** 3;
 }
 
+function easeInOutCubic(value) {
+	if (value < 0.5) {
+		return 4 * value * value * value;
+	}
+
+	return 1 - ((-2 * value + 2) ** 3) / 2;
+}
+
+function createSteppedTimeline(timeline, count, holdRatio = 0.72) {
+	const bounded = clamp(timeline, 0, count);
+	const state = Math.floor(bounded);
+
+	if (state >= count) {
+		return count;
+	}
+
+	const phase = bounded - state;
+
+	if (phase <= holdRatio) {
+		return state;
+	}
+
+	const transition = clamp((phase - holdRatio) / (1 - holdRatio), 0, 1);
+	return state + easeInOutCubic(transition);
+}
+
 function createSeededRng(seed) {
 	let state = seed >>> 0;
 
@@ -134,7 +160,8 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			const firstVisible = Math.max(0, arrivedCount - slots);
 			const visibleCount = Math.min(arrivedCount, slots);
 			const rightAlignOffset = slots - visibleCount;
-			const shouldCenterVisible = arrivedCount === count && visibleCount > 0;
+			const shouldCenterVisible =
+				(arrivedCount === count && visibleCount > 0) || slots === 1;
 			const visibleTrackWidth = visibleCount * cardWidth + Math.max(0, visibleCount - 1) * gap;
 			const centeredStart = Math.max((viewportWidth - visibleTrackWidth) * 0.5, 0);
 			const rightAlignedStart = sidePadding + rightAlignOffset * (cardWidth + gap);
@@ -175,8 +202,15 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 
 			const offRight = viewportWidth + cardWidth + 90;
 			const offLeft = -cardWidth - 120;
-			const travel = count + 0.6;
-			const timeline = clamp(progress * travel, 0, count);
+			const isTouchSingleColumn =
+				slots === 1 && window.matchMedia('(pointer: coarse)').matches;
+			const travel = isTouchSingleColumn ? count + 0.35 : count + 0.6;
+			const mobileStartDelay = isTouchSingleColumn ? 0.02 : 0;
+			const delayedProgress = Math.max(progress - mobileStartDelay, 0);
+			const rawTimeline = clamp(delayedProgress * travel, 0, count);
+			const timeline = isTouchSingleColumn
+				? createSteppedTimeline(rawTimeline, count, 0.5)
+				: rawTimeline;
 			const state = Math.floor(timeline);
 			const alpha = state >= count ? 0 : easeOutCubic(timeline - state);
 			const from = getStatePositions({
@@ -245,6 +279,12 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 				const x = positions[index] ?? viewportWidth + 200;
 
 				if (cardNode) {
+					if (isTouchSingleColumn) {
+						const enterProgress = clamp(timeline - index, 0, 1);
+						cardNode.style.opacity = `${easeInOutCubic(enterProgress)}`;
+					} else if (cardNode.style.opacity) {
+						cardNode.style.opacity = '';
+					}
 					cardNode.style.height = `${layout.cardHeight}px`;
 					cardNode.style.transform = `translate3d(${x}px, -50%, 0)`;
 				}

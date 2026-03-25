@@ -81,12 +81,6 @@ const dictionary = getDictionary(lang);
 			return RANDOM_POOL;
 		};
 
-		const isInView = (element) => {
-			const rect = element.getBoundingClientRect();
-			const vh = window.innerHeight || document.documentElement.clientHeight || 0;
-			return rect.top < vh * 0.88 && rect.bottom > vh * 0.12;
-		};
-
 		class StatsAnimatedGridElement extends HTMLElement {
 			constructor() {
 				super();
@@ -94,7 +88,6 @@ const dictionary = getDictionary(lang);
 				this._observer = null;
 				this._rafId = 0;
 				this._delayId = 0;
-				this._checkTrigger = this._checkTrigger.bind(this);
 			}
 
 			connectedCallback() {
@@ -160,12 +153,9 @@ const dictionary = getDictionary(lang);
 						},
 					);
 					this._observer.observe(this);
+				} else {
+					this._triggerOnce();
 				}
-
-				window.addEventListener('scroll', this._checkTrigger, { passive: true });
-				window.addEventListener('resize', this._checkTrigger);
-				window.addEventListener('load', this._checkTrigger);
-				requestAnimationFrame(this._checkTrigger);
 			}
 
 			disconnectedCallback() {
@@ -178,9 +168,6 @@ const dictionary = getDictionary(lang);
 					this._observer = null;
 				}
 				delete this.dataset.statsAnimating;
-				window.removeEventListener('scroll', this._checkTrigger);
-				window.removeEventListener('resize', this._checkTrigger);
-				window.removeEventListener('load', this._checkTrigger);
 				if (this._delayId) {
 					clearTimeout(this._delayId);
 					this._delayId = 0;
@@ -191,13 +178,6 @@ const dictionary = getDictionary(lang);
 				}
 			}
 
-			_checkTrigger() {
-				const visible = isInView(this);
-				if (this._triggered || this.dataset.statsAnimated === 'true') return;
-				if (!visible) return;
-				this._triggerOnce();
-			}
-
 			_triggerOnce() {
 				if (this._triggered || this.dataset.statsAnimated === 'true') return;
 				this._triggered = true;
@@ -206,9 +186,6 @@ const dictionary = getDictionary(lang);
 					this._observer.disconnect();
 					this._observer = null;
 				}
-				window.removeEventListener('scroll', this._checkTrigger);
-				window.removeEventListener('resize', this._checkTrigger);
-				window.removeEventListener('load', this._checkTrigger);
 
 				this._delayId = window.setTimeout(() => {
 					this._delayId = 0;
@@ -219,8 +196,7 @@ const dictionary = getDictionary(lang);
 			_startAnimation() {
 				const startedAt = performance.now();
 				const durationMs = 1320;
-				const isMobile = window.matchMedia('(max-width: 900px)').matches;
-				const minFrameGapMs = isMobile ? 34 : 0;
+				const minFrameGapMs = 16;
 				let lastPaintAt = startedAt;
 				let lastShufflePhase = -1;
 				let lastShuffleRevealedCount = -1;

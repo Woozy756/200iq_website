@@ -31,8 +31,19 @@ export const POST: APIRoute = async ({ request }) => {
 		}
 
 		const apiKey = import.meta.env.RESEND_API_KEY;
+		const isProd = import.meta.env.PROD;
+		const toEmail = import.meta.env.CONTACT_TO_EMAIL || '200iqservices@gmail.com';
+		const fromEmail = import.meta.env.RESEND_FROM_EMAIL || 'Contact Form <onboarding@resend.dev>';
 
 		if (!apiKey || apiKey === 're_YOUR_API_KEY_HERE') {
+			if (isProd) {
+				console.error('CONTACT CONFIG ERROR: RESEND_API_KEY is missing in production.');
+				return new Response(
+					JSON.stringify({ success: false, error: 'Email service is not configured.' }),
+					{ status: 500, headers: { 'Content-Type': 'application/json' } }
+				);
+			}
+
 			// Development fallback — log to console instead of sending
 			console.log('──────────────────────────────────────');
 			console.log('📧 CONTACT FORM SUBMISSION (dev mode)');
@@ -53,8 +64,8 @@ export const POST: APIRoute = async ({ request }) => {
 		const typeName = PROJECT_TYPE_LABELS[projectType] ?? projectType;
 
 		const { error } = await resend.emails.send({
-			from: 'Contact Form <onboarding@resend.dev>',
-			to: '200iqservices@gmail.com',
+			from: fromEmail,
+			to: toEmail,
 			subject: `New Project Inquiry — ${typeName}`,
 			replyTo: email,
 			html: `

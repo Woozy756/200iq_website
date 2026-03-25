@@ -58,6 +58,7 @@ export default function MountainProcessIsland({ steps = [] }) {
 	const targetProgressRef = useRef(0);
 	const currentProgressRef = useRef(0);
 	const rafIdRef = useRef(0);
+	const lastTickTimeRef = useRef(0);
 	const boundsRef = useRef({ start: 0, span: 1 });
 	const cardLayoutRef = useRef({ mode: '', entries: [] });
 	const renderCacheRef = useRef({
@@ -211,10 +212,11 @@ export default function MountainProcessIsland({ steps = [] }) {
 			}
 		};
 
-		const setPathDashoffset = (progress, viewportWidth) => {
-			const isDesktop = viewportWidth > 980;
-			const coreDashOffset = `${(1 - progress).toFixed(3)}`;
-			const glowDashOffset = `${(1 - progress).toFixed(2)}`;
+		const setPathDashoffset = (progress) => {
+			const isDesktop = (window.innerWidth || 1280) > 980;
+			const dashOffset = 1 - progress;
+			const coreDashOffset = dashOffset.toFixed(7);
+			const glowDashOffset = dashOffset.toFixed(7);
 
 			if (renderCacheRef.current.coreDashOffset !== coreDashOffset) {
 				renderCacheRef.current.coreDashOffset = coreDashOffset;
@@ -320,7 +322,7 @@ export default function MountainProcessIsland({ steps = [] }) {
 			}
 
 			const revealVisibility = clamp((progress - 0.01) / 0.06, 0, 1);
-			const revealValue = revealVisibility.toFixed(3);
+			const revealValue = revealVisibility.toFixed(7);
 			const viewportWidth = window.innerWidth || 1280;
 
 			if (renderCacheRef.current.revealVisibility !== revealValue) {
@@ -333,7 +335,7 @@ export default function MountainProcessIsland({ steps = [] }) {
 				}
 			}
 
-			setPathDashoffset(progress, viewportWidth);
+			setPathDashoffset(progress);
 			updateCards(progress, viewportWidth);
 		};
 
@@ -372,20 +374,21 @@ export default function MountainProcessIsland({ steps = [] }) {
 				targetProgressRef.current = nextTarget;
 				currentProgressRef.current = nextTarget;
 				renderCacheRef.current.lastRenderedProgress = nextTarget;
+				lastTickTimeRef.current = 0;
 				renderProgress(nextTarget);
 				cancelAnimationFrame(rafIdRef.current);
 				rafIdRef.current = 0;
 				return;
 			}
 
-			if (Math.abs(nextTarget - targetProgressRef.current) < 0.0005) {
+			if (Math.abs(nextTarget - targetProgressRef.current) < 0.00001) {
 				return;
 			}
 			targetProgressRef.current = nextTarget;
 			startTick();
 		};
 
-		const tick = () => {
+		const tick = (timestamp) => {
 			rafIdRef.current = 0;
 			if (prefersReducedMotionRef.current) {
 				return;
@@ -396,16 +399,13 @@ export default function MountainProcessIsland({ steps = [] }) {
 
 			const target = targetProgressRef.current;
 			const current = currentProgressRef.current;
-			const next = current + (target - current) * 0.2;
-			const settled = Math.abs(target - next) < 0.0008;
+			const lastTickTime = lastTickTimeRef.current || timestamp;
+			const frameDelta = Math.min(48, Math.max(1, timestamp - lastTickTime));
+			lastTickTimeRef.current = timestamp;
+			const smoothing = 1 - Math.exp(-frameDelta / 54);
+			const next = current + (target - current) * smoothing;
+			const settled = Math.abs(target - next) < 0.00004;
 			const progress = settled ? target : next;
-			const delta = Math.abs(progress - renderCacheRef.current.lastRenderedProgress);
-
-			if (!settled && delta < 0.0007) {
-				currentProgressRef.current = progress;
-				startTick();
-				return;
-			}
 
 			currentProgressRef.current = progress;
 			renderCacheRef.current.lastRenderedProgress = progress;
@@ -518,6 +518,7 @@ export default function MountainProcessIsland({ steps = [] }) {
 			window.removeEventListener('pageshow', resyncAfterTransition);
 			removeReducedMotionListener();
 			cancelAnimationFrame(rafIdRef.current);
+			lastTickTimeRef.current = 0;
 		};
 	}, [ranges, steps.length]);
 
@@ -574,46 +575,46 @@ export default function MountainProcessIsland({ steps = [] }) {
 							'--process-glow-dashoffset': 1,
 						}}
 					>
-						{brainPaths.map((path, index) => (
-							<path
-								className="process-brain-path-glow process-brain-path-glow-wide"
-								d={path}
-								key={`brain-wide-${index}`}
-								pathLength="1"
-								strokeDasharray="1"
-								strokeDashoffset="1"
-							/>
-						))}
-						{brainPaths.map((path, index) => (
-							<path
-								className="process-brain-path-glow process-brain-path-glow-mid"
-								d={path}
-								key={`brain-mid-${index}`}
-								pathLength="1"
-								strokeDasharray="1"
-								strokeDashoffset="1"
-							/>
-						))}
-						{brainPaths.map((path, index) => (
-							<path
-								className="process-brain-path-glow process-brain-path-glow-core"
-								d={path}
-								key={`brain-core-${index}`}
-								pathLength="1"
-								strokeDasharray="1"
-								strokeDashoffset="1"
-							/>
-						))}
-						{brainPaths.map((path, index) => (
-							<path
-								className="process-brain-path-progress"
-								d={path}
-								key={`brain-progress-${index}`}
-								pathLength="1"
-								strokeDasharray="1"
-								strokeDashoffset="1"
-							/>
-						))}
+							{brainPaths.map((path, index) => (
+								<path
+									className="process-brain-path-glow process-brain-path-glow-wide"
+									d={path}
+									key={`brain-wide-${index}`}
+									pathLength="1"
+									strokeDasharray="1"
+									strokeDashoffset="1"
+								/>
+							))}
+							{brainPaths.map((path, index) => (
+								<path
+									className="process-brain-path-glow process-brain-path-glow-mid"
+									d={path}
+									key={`brain-mid-${index}`}
+									pathLength="1"
+									strokeDasharray="1"
+									strokeDashoffset="1"
+								/>
+							))}
+							{brainPaths.map((path, index) => (
+								<path
+									className="process-brain-path-glow process-brain-path-glow-core"
+									d={path}
+									key={`brain-core-${index}`}
+									pathLength="1"
+									strokeDasharray="1"
+									strokeDashoffset="1"
+								/>
+							))}
+							{brainPaths.map((path, index) => (
+								<path
+									className="process-brain-path-progress"
+									d={path}
+									key={`brain-progress-${index}`}
+									pathLength="1"
+									strokeDasharray="1"
+									strokeDashoffset="1"
+								/>
+							))}
 					</svg>
 				</div>
 
