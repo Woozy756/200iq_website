@@ -37,8 +37,9 @@ function createSteppedTimeline(timeline, count, holdRatio = 0.72) {
 
 const MOBILE_SINGLE_COLUMN_START = 0;
 const MOBILE_SINGLE_COLUMN_END_HOLD = 0.16;
-const MOBILE_SINGLE_COLUMN_HOLD_RATIO = 0.52;
+const MOBILE_SINGLE_COLUMN_HOLD_RATIO = 0.34;
 const MOBILE_SINGLE_COLUMN_FIRST_CARD_BOOST = 0.5;
+const MOBILE_SINGLE_COLUMN_PROGRESS_CURVE = 1.35;
 
 function createSeededRng(seed) {
 	let state = seed >>> 0;
@@ -113,18 +114,21 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 	const containerRef = useRef(null);
 	const cardRefs = useRef([]);
 	const glowRefs = useRef([]);
-	const timelineSmoothingRef = useRef({
-		mobileActive: false,
-		value: 0,
-	});
 	const layoutRef = useRef({
 		cardWidth: 0,
 		glowSize: 0,
 		cardHeight: 0,
 	});
+	const runtimeRef = useRef({
+		containerNode: null,
+		cardNodes: [],
+		glowNodes: [],
+		needsMeasure: true,
+	});
 
 	useEffect(() => {
-		const resolveLiveNodes = () => {
+		const refreshLiveNodes = () => {
+			const runtime = runtimeRef.current;
 			const currentContainer = containerRef.current;
 			const candidates = document.querySelectorAll('.svcx-scroll');
 			let newestContainer = null;
@@ -139,7 +143,13 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			const containerNode = newestContainer || (hasLiveContainer ? currentContainer : null);
 
 			if (!containerNode) {
-				return { containerNode: null, cardNodes: [], glowNodes: [] };
+				runtime.containerNode = null;
+				runtime.cardNodes = [];
+				runtime.glowNodes = [];
+				runtime.needsMeasure = true;
+				cardRefs.current = [];
+				glowRefs.current = [];
+				return;
 			}
 
 			if (containerRef.current !== containerNode) {
@@ -148,10 +158,55 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 
 			const cardNodes = Array.from(containerNode.querySelectorAll('.svcx-card'));
 			const glowNodes = Array.from(containerNode.querySelectorAll('.svcx-glow-spot'));
+			runtime.containerNode = containerNode;
+			runtime.cardNodes = cardNodes;
+			runtime.glowNodes = glowNodes;
+			runtime.needsMeasure = true;
 			cardRefs.current = cardNodes;
 			glowRefs.current = glowNodes;
+		};
 
-			return { containerNode, cardNodes, glowNodes };
+		const getLiveNodes = () => {
+			const runtime = runtimeRef.current;
+			if (!runtime.containerNode || !document.contains(runtime.containerNode)) {
+				refreshLiveNodes();
+			}
+			return runtimeRef.current;
+		};
+
+		const measureCards = (cardNodes, cardWidth) => {
+			const runtime = runtimeRef.current;
+			const layout = layoutRef.current;
+			const widthValue = `${cardWidth}px`;
+
+			for (let index = 0; index < cardNodes.length; index += 1) {
+				const cardNode = cardNodes[index];
+				if (!cardNode) continue;
+
+				if (cardNode.style.width !== widthValue) {
+					cardNode.style.width = widthValue;
+				}
+				cardNode.style.height = '';
+			}
+
+			let tallestCardHeight = 0;
+			for (let index = 0; index < cardNodes.length; index += 1) {
+				const cardNode = cardNodes[index];
+				if (!cardNode) continue;
+
+				const naturalHeight = Math.max(
+					cardNode.getBoundingClientRect().height,
+					cardNode.scrollHeight,
+				);
+				tallestCardHeight = Math.max(tallestCardHeight, naturalHeight);
+			}
+
+			const nextCardHeight = Math.ceil(tallestCardHeight);
+			if (layout.cardHeight !== nextCardHeight) {
+				layout.cardHeight = nextCardHeight;
+			}
+
+			runtime.needsMeasure = false;
 		};
 
 		const getStatePositions = ({
@@ -190,7 +245,7 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 		};
 
 		const renderFrame = () => {
-			const { containerNode, cardNodes, glowNodes } = resolveLiveNodes();
+			const { containerNode, cardNodes, glowNodes } = getLiveNodes();
 			if (!containerNode) return;
 
 			const viewportWidth = window.innerWidth || 1280;
@@ -230,7 +285,9 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 					0,
 					1,
 				);
-				const mobileTimeline = normalizedMobileProgress * count;
+				const curvedMobileProgress =
+					normalizedMobileProgress ** MOBILE_SINGLE_COLUMN_PROGRESS_CURVE;
+				const mobileTimeline = curvedMobileProgress * count;
 				timeline = createSteppedTimeline(
 					mobileTimeline,
 					count,
@@ -238,7 +295,7 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 				);
 			}
 
-			const targetTimeline = isTouchSingleColumn
+			const renderTimeline = isTouchSingleColumn
 				? Math.min(
 					count,
 					timeline
@@ -246,30 +303,6 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 							* (1 - clamp(timeline, 0, 1)),
 				)
 				: timeline;
-			let renderTimeline = targetTimeline;
-			const timelineSmoothing = timelineSmoothingRef.current;
-
-				if (isTouchSingleColumn) {
-					if (!timelineSmoothing.mobileActive) {
-						timelineSmoothing.mobileActive = true;
-						timelineSmoothing.value = targetTimeline;
-					} else {
-						const damping = 0.09;
-						timelineSmoothing.value += (targetTimeline - timelineSmoothing.value) * damping;
-						if (Math.abs(targetTimeline - timelineSmoothing.value) < 0.001) {
-							timelineSmoothing.value = targetTimeline;
-						}
-				}
-
-				if (progress <= 0.001 || progress >= 0.999) {
-					timelineSmoothing.value = targetTimeline;
-				}
-
-				renderTimeline = timelineSmoothing.value;
-			} else {
-				timelineSmoothing.mobileActive = false;
-				timelineSmoothing.value = targetTimeline;
-			}
 
 			const state = Math.floor(renderTimeline);
 			const alpha = state >= count
@@ -301,13 +334,14 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			});
 			const positions = from.map((x, index) => x + (to[index] - x) * alpha);
 			const glowSize = Math.round(cardWidth * 1.5);
+			const runtime = runtimeRef.current;
 			const layout = layoutRef.current;
 			const cardWidthChanged = layout.cardWidth !== cardWidth;
 			const glowSizeChanged = layout.glowSize !== glowSize;
-			let tallestCardHeight = 0;
 
 			if (cardWidthChanged) {
 				layout.cardWidth = cardWidth;
+				runtime.needsMeasure = true;
 			}
 
 			if (glowSizeChanged) {
@@ -315,27 +349,9 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			}
 
 			const cardCount = Math.min(cardNodes.length, cards.length || cardNodes.length);
-
-			for (let index = 0; index < cardCount; index += 1) {
-				const cardNode = cardNodes[index];
-				if (cardNode) {
-					const widthValue = `${cardWidth}px`;
-					if (cardNode.style.width !== widthValue) {
-						cardNode.style.width = widthValue;
-					}
-					cardNode.style.height = '';
-
-					const naturalHeight = Math.max(
-						cardNode.getBoundingClientRect().height,
-						cardNode.scrollHeight,
-					);
-					tallestCardHeight = Math.max(tallestCardHeight, naturalHeight);
-				}
-			}
-
-			const nextCardHeight = Math.ceil(tallestCardHeight);
-			if (layout.cardHeight !== nextCardHeight) {
-				layout.cardHeight = nextCardHeight;
+			const activeCardNodes = cardNodes.slice(0, cardCount);
+			if (runtime.needsMeasure || layout.cardHeight <= 0) {
+				measureCards(activeCardNodes, cardWidth);
 			}
 
 			for (let index = 0; index < cardCount; index += 1) {
@@ -376,6 +392,7 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 		};
 
 		const resyncAfterTransition = () => {
+			refreshLiveNodes();
 			renderFrame();
 			requestAnimationFrame(() => {
 				renderFrame();
@@ -385,9 +402,17 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			});
 		};
 
+		const handleResize = () => {
+			refreshLiveNodes();
+		};
+
+		refreshLiveNodes();
+
 		document.addEventListener('astro:after-swap', resyncAfterTransition);
 		document.addEventListener('astro:page-load', resyncAfterTransition);
 		window.addEventListener('pageshow', resyncAfterTransition);
+		window.addEventListener('resize', handleResize);
+		window.addEventListener('orientationchange', handleResize);
 
 		const unsubscribe = subscribeViewportRaf(renderFrame);
 
@@ -395,6 +420,8 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			document.removeEventListener('astro:after-swap', resyncAfterTransition);
 			document.removeEventListener('astro:page-load', resyncAfterTransition);
 			window.removeEventListener('pageshow', resyncAfterTransition);
+			window.removeEventListener('resize', handleResize);
+			window.removeEventListener('orientationchange', handleResize);
 			unsubscribe();
 		};
 	}, [cards.length]);

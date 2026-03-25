@@ -1510,6 +1510,14 @@ main {
     height: 400vh;
     height: 400svh;
     isolation: isolate;
+    background-color: #120703;
+    background: linear-gradient(
+        180deg,
+        rgba(8, 3, 1, 0.34) 0%,
+        rgba(27, 11, 4, 0.97) 34%,
+        rgba(27, 11, 4, 0.97) 66%,
+        rgba(8, 3, 1, 0.34) 100%
+    );
     transform: translateZ(0);
     backface-visibility: hidden;
 }
@@ -1564,6 +1572,7 @@ main {
     top: 0;
     height: 100vh;
     height: 100svh;
+    height: 100dvh;
     width: 100%;
     overflow: hidden;
     display: flex;
