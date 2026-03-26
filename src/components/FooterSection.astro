@@ -1,5 +1,5 @@
 ---
-import { normalizeLang, useTranslations } from '../i18n/utils';
+import { getLocalizedPath, normalizeLang, useTranslations } from '../i18n/utils';
 
 interface Props {
 	lang: string;
@@ -17,7 +17,7 @@ const facebookHref = t('footer.facebookHref');
 				<h2 class="footer-title">
 					{t('footer.titleStart')} <br /> <span class="accent">{t('footer.titleHighlight')}</span>
 				</h2>
-				<a class="btn btn-primary" href={`/${lang}/contact`}>{t('footer.cta')}</a>
+				<a class="btn btn-primary" href={getLocalizedPath(lang, '/contact')}>{t('footer.cta')}</a>
 			</div>
 			<div class="footer-columns">
 				<div class="footer-social-column">

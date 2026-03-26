@@ -16,6 +16,9 @@
   "dependencies": {
     "@astrojs/node": "10.0.2",
     "@astrojs/react": "5.0.0",
+    "@fontsource/inter": "^5.2.6",
+    "@fontsource/oswald": "^5.2.6",
+    "@fontsource/space-grotesk": "^5.2.6",
     "astro": "6.0.4",
     "compression": "^1.8.1",
     "express": "^5.2.1",

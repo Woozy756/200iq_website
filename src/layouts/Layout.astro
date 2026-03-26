@@ -1,12 +1,19 @@
 ---
 import SmoothScroll from '../components/SmoothScroll.astro';
-import { normalizeLang } from '../i18n/utils';
+import { getLocalizedPath as buildLocalizedPath, normalizeLang } from '../i18n/utils';
 import { defaultLang, locales, type Lang } from '../i18n/ui';
 import { ClientRouter } from 'astro:transitions';
 import brandLogo from '../assets/200iq_logo.png';
 import siteFavicon from '../assets/favicon.svg';
+import fontStylesheetHref from '../styles/fonts.css?url';
 import globalStylesheetHref from '../styles/global.css?url';
 import homeCriticalCss from '../styles/critical-home.css?raw';
+import interLatin400Woff2 from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
+import interCyrillic400Woff2 from '@fontsource/inter/files/inter-cyrillic-400-normal.woff2?url';
+import oswaldLatin700Woff2 from '@fontsource/oswald/files/oswald-latin-700-normal.woff2?url';
+import oswaldCyrillic700Woff2 from '@fontsource/oswald/files/oswald-cyrillic-700-normal.woff2?url';
+import spaceGroteskLatin600Woff2 from '@fontsource/space-grotesk/files/space-grotesk-latin-600-normal.woff2?url';
+import spaceGroteskLatin700Woff2 from '@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2?url';
 
 interface Props {
 	lang: string;
@@ -85,13 +92,14 @@ const ogLocaleMap: Record<Lang, string> = {
 };
 const activeOgLocale = ogLocaleMap[activeLang];
 const alternateOgLocales = locales.filter((locale) => locale !== activeLang).map((locale) => ogLocaleMap[locale]);
-const fontStylesheetHref =
-	'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Oswald:wght@700&family=Space+Grotesk:wght@400;500;700&display=swap';
+const isCyrillicLocale = activeLang === 'ru';
+const interCriticalWoff2 = isCyrillicLocale ? interCyrillic400Woff2 : interLatin400Woff2;
+const oswaldCriticalWoff2 = isCyrillicLocale ? oswaldCyrillic700Woff2 : oswaldLatin700Woff2;
 const flagIconStylesheetHref = 'https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css';
 const nonHomeCriticalCss = `
 	:root {
 		color-scheme: only light;
-		--container: 1160px;
+		--container: 1120px;
 	}
 
 	*,
@@ -131,10 +139,8 @@ const nonHomeCriticalCss = `
 	}
 `;
 
-const getLocalizedPath = (locale: Lang) => {
-	const pathSegments = locales.includes(currentSegments[0] as Lang) ? currentSegments.slice(1) : currentSegments;
-	return pathSegments.length > 0 ? `/${locale}/${pathSegments.join('/')}` : `/${locale}/`;
-};
+const localizedContentPath = contentSegments.length > 0 ? `/${contentSegments.join('/')}` : '/';
+const getLocalizedPath = (locale: Lang) => buildLocalizedPath(locale, localizedContentPath);
 ---
 
 <!doctype html>
@@ -172,8 +178,6 @@ const getLocalizedPath = (locale: Lang) => {
 				))
 			}
 			<link rel="alternate" hreflang="x-default" href={`${siteOrigin}${getLocalizedPath(defaultLang)}`} />
-			<link rel="preconnect" href="https://fonts.googleapis.com" />
-			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 			{
 				isHomePage ? (
 					<style is:inline set:html={homeCriticalCss}></style>
@@ -188,33 +192,34 @@ const getLocalizedPath = (locale: Lang) => {
 				onload="this.onload=null;this.rel='stylesheet'"
 			/>
 			<noscript><link rel="stylesheet" href={flagIconStylesheetHref} /></noscript>
-			<link
-				rel="preload"
-				as="style"
-				href={fontStylesheetHref}
-			/>
-			<link
-				href={fontStylesheetHref}
-				rel="stylesheet"
-				media="print"
-				onload="this.media='all'"
-			/>
-			<noscript><link rel="stylesheet" href={fontStylesheetHref} /></noscript>
-			<link
-				rel="preload"
-				as="style"
-				href={globalStylesheetHref}
-				onload="this.onload=null;this.rel='stylesheet'"
-			/>
-			<noscript><link rel="stylesheet" href={globalStylesheetHref} /></noscript>
+			<link rel="preload" as="font" type="font/woff2" href={interCriticalWoff2} crossorigin />
+			<link rel="preload" as="font" type="font/woff2" href={oswaldCriticalWoff2} crossorigin />
+			<link rel="preload" as="font" type="font/woff2" href={spaceGroteskLatin600Woff2} crossorigin />
+			<link rel="preload" as="font" type="font/woff2" href={spaceGroteskLatin700Woff2} crossorigin />
+			<link rel="stylesheet" href={fontStylesheetHref} />
+			{
+				isHomePage ? (
+					<>
+						<link
+							rel="preload"
+							as="style"
+							href={globalStylesheetHref}
+							onload="this.onload=null;this.rel='stylesheet'"
+						/>
+						<noscript><link rel="stylesheet" href={globalStylesheetHref} /></noscript>
+					</>
+				) : (
+					<link rel="stylesheet" href={globalStylesheetHref} />
+				)
+			}
 			<title>{title}</title>
 		<ClientRouter />
 	</head>
-	<body>
-		<SmoothScroll />
-		<slot />
-	</body>
-</html>
+		<body>
+			<slot />
+			<SmoothScroll />
+		</body>
+	</html>
 
 <style is:global>
 	/* Prevent Chromium-based auto darkening (Samsung Internet "Force Dark"). */

@@ -1,0 +1,88 @@
+---
+---
+
+<div class="progress-wrap js-scroll-progress" aria-hidden="true">
+	<div class="progress-bar js-progress-bar" style="transform: scaleX(0);"></div>
+</div>
+
+<script is:inline type="module">
+	(() => {
+		const BOOTSTRAP_KEY = '__scrollProgressBootstrapped';
+		const CONTROLLER_KEY = '__scrollProgressController';
+
+		const createController = () => {
+			let frame = 0;
+			let scrollable = 1;
+			let needsMeasure = true;
+
+			const readBar = () => document.querySelector('.js-progress-bar');
+
+			const measureScrollable = () => {
+				const doc = document.documentElement;
+				scrollable = Math.max((doc?.scrollHeight || 0) - window.innerHeight, 1);
+				needsMeasure = false;
+			};
+
+			const render = () => {
+				frame = 0;
+				const bar = readBar();
+				if (!(bar instanceof HTMLElement)) return;
+				if (needsMeasure) {
+					measureScrollable();
+				}
+				const scrollTop = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+				const value = Math.min(1, Math.max(0, scrollTop / Math.max(scrollable, 1)));
+				bar.style.transform = `scaleX(${value})`;
+			};
+
+			const queueRender = () => {
+				if (frame) return;
+				frame = window.requestAnimationFrame(render);
+			};
+
+			const handleResize = () => {
+				needsMeasure = true;
+				queueRender();
+			};
+
+			const handleBeforeSwap = () => {
+				if (frame) {
+					window.cancelAnimationFrame(frame);
+					frame = 0;
+				}
+			};
+
+			window.addEventListener('scroll', queueRender, { passive: true });
+			window.addEventListener('resize', handleResize);
+			window.addEventListener('orientationchange', handleResize);
+			window.addEventListener('load', queueRender);
+			window.addEventListener('pageshow', queueRender);
+			document.addEventListener('astro:before-swap', handleBeforeSwap);
+			document.addEventListener('astro:after-swap', handleResize);
+			document.addEventListener('astro:page-load', handleResize);
+
+			queueRender();
+
+			return () => {
+				window.removeEventListener('scroll', queueRender);
+				window.removeEventListener('resize', handleResize);
+				window.removeEventListener('orientationchange', handleResize);
+				window.removeEventListener('load', queueRender);
+				window.removeEventListener('pageshow', queueRender);
+				document.removeEventListener('astro:before-swap', handleBeforeSwap);
+				document.removeEventListener('astro:after-swap', handleResize);
+				document.removeEventListener('astro:page-load', handleResize);
+				if (frame) {
+					window.cancelAnimationFrame(frame);
+					frame = 0;
+				}
+			};
+		};
+
+		if (window[BOOTSTRAP_KEY]) {
+			return;
+		}
+		window[BOOTSTRAP_KEY] = true;
+		window[CONTROLLER_KEY] = createController();
+	})();
+</script>

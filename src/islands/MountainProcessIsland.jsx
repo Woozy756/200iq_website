@@ -493,15 +493,31 @@ export default function MountainProcessIsland({ steps = [] }) {
 			handleViewport();
 		};
 
-		const resyncAfterTransition = () => {
-			syncAfterTransition();
-			requestAnimationFrame(() => {
-				syncAfterTransition();
-				requestAnimationFrame(() => {
+			let resyncFrame = 0;
+			let settleFrame = 0;
+
+			const cancelResyncFrames = () => {
+				if (resyncFrame) {
+					cancelAnimationFrame(resyncFrame);
+					resyncFrame = 0;
+				}
+				if (settleFrame) {
+					cancelAnimationFrame(settleFrame);
+					settleFrame = 0;
+				}
+			};
+
+			const resyncAfterTransition = () => {
+				cancelResyncFrames();
+				resyncFrame = requestAnimationFrame(() => {
+					resyncFrame = 0;
 					syncAfterTransition();
+					settleFrame = requestAnimationFrame(() => {
+						settleFrame = 0;
+						syncAfterTransition();
+					});
 				});
-			});
-		};
+			};
 		measureBounds();
 		handleViewport();
 
@@ -511,15 +527,16 @@ export default function MountainProcessIsland({ steps = [] }) {
 		document.addEventListener('astro:page-load', resyncAfterTransition);
 		window.addEventListener('pageshow', resyncAfterTransition);
 
-		return () => {
-			unsubscribe();
-			document.removeEventListener('astro:after-swap', resyncAfterTransition);
-			document.removeEventListener('astro:page-load', resyncAfterTransition);
-			window.removeEventListener('pageshow', resyncAfterTransition);
-			removeReducedMotionListener();
-			cancelAnimationFrame(rafIdRef.current);
-			lastTickTimeRef.current = 0;
-		};
+			return () => {
+				unsubscribe();
+				document.removeEventListener('astro:after-swap', resyncAfterTransition);
+				document.removeEventListener('astro:page-load', resyncAfterTransition);
+				window.removeEventListener('pageshow', resyncAfterTransition);
+				removeReducedMotionListener();
+				cancelResyncFrames();
+				cancelAnimationFrame(rafIdRef.current);
+				lastTickTimeRef.current = 0;
+			};
 	}, [ranges, steps.length]);
 
 	return (

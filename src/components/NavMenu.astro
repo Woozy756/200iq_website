@@ -1,5 +1,6 @@
 ---
 import defaultBrandLogo from '../assets/200iq_logo.png';
+import { getLocalizedPath } from '../i18n/utils';
 
 interface NavLink {
 	label: string;
@@ -53,8 +54,8 @@ const navLogoWidth = Number.isFinite(props.logoWidth) ? props.logoWidth : 260;
 const navLogoHeight = Number.isFinite(props.logoHeight) ? props.logoHeight : 77;
 const safeLocale = String(props.currentLocale || 'lv').replace(/[^a-z0-9_-]/gi, '');
 const localeMenuId = `locale-popover-${safeLocale}`;
-const brandHref = `/${props.currentLocale}/`;
-const contactHref = `/${props.currentLocale}/contact`;
+const brandHref = getLocalizedPath(props.currentLocale);
+const contactHref = getLocalizedPath(props.currentLocale, '/contact');
 ---
 
 <header
@@ -187,20 +188,22 @@ const contactHref = `/${props.currentLocale}/contact`;
 			}
 		};
 
-		const scrollToTargetId = (targetId) => {
-			if (!targetId) return false;
-			const target = document.getElementById(targetId);
-			if (!target) return false;
+			const scrollToTargetId = (targetId) => {
+				if (!targetId) return false;
+				const target = document.getElementById(targetId);
+				if (!target) return false;
 
-			if (typeof window.__jumpToTargetWithTransition === 'function') {
-				window.__jumpToTargetWithTransition(target);
+				if (typeof window.__jumpToTargetWithTransition === 'function') {
+					window.__jumpToTargetWithTransition(target);
+					return true;
+				}
+
+				target.scrollIntoView({
+					behavior: 'auto',
+					block: 'start',
+				});
 				return true;
-			}
-
-			const targetY = target.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0);
-			window.scrollTo(0, targetY);
-			return true;
-		};
+			};
 
 		const createController = (shell) => {
 			const abortController = new AbortController();
@@ -260,7 +263,7 @@ const contactHref = `/${props.currentLocale}/contact`;
 				const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
 				const rect = hero.getBoundingClientRect();
 				const heroTop = rect.top + scrollY;
-				const heroTravel = Math.max(hero.offsetHeight - window.innerHeight, 0);
+				const heroTravel = Math.max(rect.height - window.innerHeight, 0);
 				releasePoint = heroTravel === 0 ? heroTop + 20 : heroTop + heroTravel + 4;
 			};
 

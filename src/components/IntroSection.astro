@@ -1,6 +1,6 @@
 ---
 import HeroFluidBackgroundIsland from '/src/islands/HeroFluidBackgroundIsland.jsx';
-import { normalizeLang, useTranslations } from '../i18n/utils';
+import { getLocalizedPath, normalizeLang, useTranslations } from '../i18n/utils';
 
 interface Props {
 	lang: string;
@@ -10,9 +10,9 @@ const lang = normalizeLang(Astro.props.lang);
 const t = useTranslations(lang);
 ---
 
-<section class="hero section">
-	<div class="hero-stage">
-		<HeroFluidBackgroundIsland client:idle />
+	<section class="hero section">
+		<div class="hero-stage">
+			<HeroFluidBackgroundIsland client:idle />
 
 		<div class="container hero-content">
 			<div class="hero-grid">
@@ -25,7 +25,7 @@ const t = useTranslations(lang);
 					</h1>
 					<p class="hero-prompt">{t('intro.readyPrompt')}</p>
 					<div class="hero-actions">
-						<a href={`/${lang}/contact`} class="btn btn-primary">{t('intro.primaryCta')}</a>
+						<a href={getLocalizedPath(lang, '/contact')} class="btn btn-primary">{t('intro.primaryCta')}</a>
 						<a href="#tech" class="btn btn-dark hero-secondary-btn">{t('intro.secondaryCta')}</a>
 					</div>
 				</div>
@@ -40,22 +40,33 @@ const t = useTranslations(lang);
 	<div class="section-divider is-bottom" aria-hidden="true"></div>
 </section>
 
-<script is:inline type="module">
-	function initCoolSplit() {
-		const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+	<script is:inline type="module">
+		function initCoolSplit() {
+			if (window.__coolSplitCleanup) {
+				window.__coolSplitCleanup();
+				window.__coolSplitCleanup = null;
+			}
+
+			const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 		const splitParagraph = (element) => {
 			if (element.dataset.splitDone) return null;
 			const text = element.textContent || '';
-			element.setAttribute('aria-label', text);
 			element.textContent = '';
 
-			const fragment = document.createDocumentFragment();
+			const srText = document.createElement('span');
+			srText.textContent = text;
+			srText.style.cssText =
+				'position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;';
+
+			const visualLayer = document.createElement('span');
+			visualLayer.setAttribute('aria-hidden', 'true');
+
 			const chars = [];
 
 			Array.from(text).forEach((character) => {
 				if (character === ' ') {
-					fragment.appendChild(document.createTextNode(' '));
+					visualLayer.appendChild(document.createTextNode(' '));
 					return;
 				}
 
@@ -64,11 +75,11 @@ const t = useTranslations(lang);
 				span.textContent = character;
 				span.style.setProperty('--reveal', '0');
 				span.setAttribute('aria-hidden', 'true');
-				fragment.appendChild(span);
+				visualLayer.appendChild(span);
 				chars.push(span);
 			});
 
-			element.appendChild(fragment);
+			element.append(srText, visualLayer);
 			element.dataset.splitDone = 'true';
 			const viewport = element.parentElement;
 			if (!(viewport instanceof HTMLElement)) {
@@ -117,24 +128,24 @@ const t = useTranslations(lang);
 				}
 			};
 
-			requestAnimationFrame(measure);
-
-			return {
-				element,
-				chars,
-				charPositions,
-				metrics,
-				measure,
+				return {
+					element,
+					chars,
+					charPositions,
+					metrics,
+					measure,
+				};
 			};
-		};
 
 		const splitTargets = Array.from(document.querySelectorAll('.cool-split'));
 		const states = splitTargets.map(splitParagraph).filter(Boolean);
 		if (states.length === 0) return;
 
-		const stateByElement = new Map(states.map((state) => [state.element, state]));
-		const activeStates = new Set();
-		let frame = 0;
+			const stateByElement = new Map(states.map((state) => [state.element, state]));
+			const activeStates = new Set();
+			let frame = 0;
+			let resizeFrame = 0;
+			let initialMeasureFrame = 0;
 
 		const getScrollProgress = (state) => {
 			const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
@@ -228,26 +239,61 @@ const t = useTranslations(lang);
 			},
 		);
 
-		states.forEach((state) => {
-			observer.observe(state.element);
-			state.measure();
-			paintState(state);
-		});
+			states.forEach((state) => {
+				observer.observe(state.element);
+			});
 
-		const handleResize = () => {
-			states.forEach((state) => state.measure());
-			requestUpdate();
-		};
+			initialMeasureFrame = window.requestAnimationFrame(() => {
+				initialMeasureFrame = 0;
+				states.forEach((state) => state.measure());
+				requestUpdate();
+			});
 
-		window.addEventListener('scroll', requestUpdate, { passive: true });
-		window.addEventListener('resize', handleResize);
-		window.addEventListener('orientationchange', handleResize);
-	}
+			const handleResize = () => {
+				if (resizeFrame) return;
+				resizeFrame = window.requestAnimationFrame(() => {
+					resizeFrame = 0;
+					states.forEach((state) => state.measure());
+					requestUpdate();
+				});
+			};
 
-	function cleanupHeroNoButton() {
-		if (window.__heroNoButtonCleanup) {
-			window.__heroNoButtonCleanup();
-			window.__heroNoButtonCleanup = null;
+			window.addEventListener('scroll', requestUpdate, { passive: true });
+			window.addEventListener('resize', handleResize);
+			window.addEventListener('orientationchange', handleResize);
+
+			window.__coolSplitCleanup = () => {
+				observer.disconnect();
+				window.removeEventListener('scroll', requestUpdate);
+				window.removeEventListener('resize', handleResize);
+				window.removeEventListener('orientationchange', handleResize);
+				if (frame) {
+					window.cancelAnimationFrame(frame);
+					frame = 0;
+				}
+				if (resizeFrame) {
+					window.cancelAnimationFrame(resizeFrame);
+					resizeFrame = 0;
+				}
+				if (initialMeasureFrame) {
+					window.cancelAnimationFrame(initialMeasureFrame);
+					initialMeasureFrame = 0;
+				}
+				activeStates.clear();
+			};
+		}
+
+		function cleanupCoolSplit() {
+			if (window.__coolSplitCleanup) {
+				window.__coolSplitCleanup();
+				window.__coolSplitCleanup = null;
+			}
+		}
+
+		function cleanupHeroNoButton() {
+			if (window.__heroNoButtonCleanup) {
+				window.__heroNoButtonCleanup();
+				window.__heroNoButtonCleanup = null;
 		}
 	}
 
@@ -263,27 +309,39 @@ const t = useTranslations(lang);
 		const collisionSelector = 'p, h1, h2, h3, h4, h5, h6, span, button, a.btn';
 		const idleReturnDelay = 5000;
 
-		const isVisible = (element) => {
-			if (!(element instanceof HTMLElement)) return false;
-			if (element === button || element.contains(button) || button.contains(element)) return false;
+			const isVisible = (element) => {
+				if (!(element instanceof HTMLElement)) return false;
+				if (element === button || element.contains(button) || button.contains(element)) return false;
 
-			const style = window.getComputedStyle(element);
-			if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
-				return false;
-			}
+				const style = window.getComputedStyle(element);
+				if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
+					return false;
+				}
+				return true;
+			};
 
-			const rect = element.getBoundingClientRect();
-			return rect.width > 0 && rect.height > 0;
-		};
+			const getCollisionRects = () => {
+				const rects = [];
+				const candidates = Array.from(document.querySelectorAll(collisionSelector));
+				for (let index = 0; index < candidates.length; index += 1) {
+					const candidate = candidates[index];
+					if (!isVisible(candidate)) continue;
+					const rect = candidate.getBoundingClientRect();
+					if (rect.width <= 0 || rect.height <= 0) continue;
+					rects.push(rect);
+				}
+				return rects;
+			};
 
 		const overlaps = (a, b) =>
 			a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 
-		const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-		let resetFrame = 0;
-		let returnTimer = 0;
-		let returnTransitionHandler = null;
-		let originRect = null;
+			const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+			let resetFrame = 0;
+			let moveFrame = 0;
+			let returnTimer = 0;
+			let returnTransitionHandler = null;
+			let originRect = null;
 
 		const clearReturnTimer = () => {
 			if (returnTimer) {
@@ -334,13 +392,12 @@ const t = useTranslations(lang);
 			button.style.position = 'fixed';
 			button.style.left = `${rect.left}px`;
 			button.style.top = `${rect.top}px`;
-			button.style.width = `${Math.ceil(rect.width)}px`;
-			button.style.height = `${Math.ceil(rect.height)}px`;
-			button.style.zIndex = '90';
-			button.dataset.escapeFixed = 'true';
-			button.getBoundingClientRect();
-			return rect;
-		};
+				button.style.width = `${Math.ceil(rect.width)}px`;
+				button.style.height = `${Math.ceil(rect.height)}px`;
+				button.style.zIndex = '90';
+				button.dataset.escapeFixed = 'true';
+				return rect;
+			};
 
 		const scheduleReturnToOrigin = () => {
 			clearReturnTimer();
@@ -362,10 +419,10 @@ const t = useTranslations(lang);
 			}, idleReturnDelay);
 		};
 
-		const getSafeRect = (originRect) => {
-			const buttonRect = originRect || button.getBoundingClientRect();
-			const buttonWidth = buttonRect.width;
-			const buttonHeight = buttonRect.height;
+			const getSafeRect = (originRect, collisionRects) => {
+				const buttonRect = originRect || button.getBoundingClientRect();
+				const buttonWidth = buttonRect.width;
+				const buttonHeight = buttonRect.height;
 			const maxLeft = Math.max(viewportPadding, window.innerWidth - buttonWidth - viewportPadding);
 			const maxTop = Math.max(viewportPadding, window.innerHeight - buttonHeight - viewportPadding);
 			const minTravel = Math.min(120, Math.max(56, Math.min(window.innerWidth, window.innerHeight) * 0.07));
@@ -398,31 +455,34 @@ const t = useTranslations(lang);
 					bottom: top + buttonHeight,
 				};
 
-				hasCollision = Array.from(document.querySelectorAll(collisionSelector))
-					.filter(isVisible)
-					.some((element) => overlaps(nextRect, element.getBoundingClientRect()));
+					hasCollision = collisionRects.some((collisionRect) => overlaps(nextRect, collisionRect));
 
-				attempts += 1;
-			}
+					attempts += 1;
+				}
 
 			return hasCollision ? null : nextRect;
 		};
 
-		const moveButton = () => {
-			if (!window.matchMedia('(pointer: fine)').matches) return;
+			const moveButton = () => {
+				if (!window.matchMedia('(pointer: fine)').matches) return;
 
-			const originRect = lockButtonToViewport();
-			const safeRect = getSafeRect(originRect);
-			if (!safeRect) return;
+				const originRect = lockButtonToViewport();
+				if (moveFrame) {
+					window.cancelAnimationFrame(moveFrame);
+				}
 
-			window.requestAnimationFrame(() => {
-				button.classList.remove('is-returning');
-				button.style.left = `${safeRect.left}px`;
-				button.style.top = `${safeRect.top}px`;
-			});
-
-			scheduleReturnToOrigin();
-		};
+				moveFrame = window.requestAnimationFrame(() => {
+					moveFrame = 0;
+					if (button.dataset.escapeFixed !== 'true') return;
+					const collisionRects = getCollisionRects();
+					const safeRect = getSafeRect(originRect, collisionRects);
+					if (!safeRect) return;
+					button.classList.remove('is-returning');
+					button.style.left = `${safeRect.left}px`;
+					button.style.top = `${safeRect.top}px`;
+					scheduleReturnToOrigin();
+				});
+			};
 
 		const handleViewportChange = () => {
 			if (button.dataset.escapeFixed === 'true') {
@@ -437,13 +497,17 @@ const t = useTranslations(lang);
 		window.addEventListener('orientationchange', handleViewportChange);
 		window.addEventListener('hashchange', handleViewportChange);
 
-		window.__heroNoButtonCleanup = () => {
-			if (resetFrame) {
-				window.cancelAnimationFrame(resetFrame);
-				resetFrame = 0;
-			}
-			button.removeEventListener('mouseenter', moveButton);
-			button.removeEventListener('mouseleave', scheduleReturnToOrigin);
+			window.__heroNoButtonCleanup = () => {
+				if (resetFrame) {
+					window.cancelAnimationFrame(resetFrame);
+					resetFrame = 0;
+				}
+				if (moveFrame) {
+					window.cancelAnimationFrame(moveFrame);
+					moveFrame = 0;
+				}
+				button.removeEventListener('mouseenter', moveButton);
+				button.removeEventListener('mouseleave', scheduleReturnToOrigin);
 			window.removeEventListener('scroll', handleViewportChange);
 			window.removeEventListener('resize', handleViewportChange);
 			window.removeEventListener('orientationchange', handleViewportChange);
@@ -483,10 +547,11 @@ const t = useTranslations(lang);
 		scheduledHeroInitId = window.setTimeout(runHeroInit, 180);
 	};
 
-	scheduleHeroInit();
-	document.addEventListener('astro:page-load', scheduleHeroInit);
-	document.addEventListener('astro:before-swap', () => {
-		clearScheduledHeroInit();
-		cleanupHeroNoButton();
-	});
-</script>
+		scheduleHeroInit();
+		document.addEventListener('astro:page-load', scheduleHeroInit);
+		document.addEventListener('astro:before-swap', () => {
+			clearScheduledHeroInit();
+			cleanupCoolSplit();
+			cleanupHeroNoButton();
+		});
+	</script>

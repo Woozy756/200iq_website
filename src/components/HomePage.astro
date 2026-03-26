@@ -4,12 +4,12 @@ import IntroSection from './IntroSection.astro';
 import NavMenu from './NavMenu.astro';
 import NetworkSection from './NetworkSection.astro';
 import ProcessSection from './ProcessSection.astro';
-import ScrollProgressIsland from '../islands/ScrollProgressIsland.jsx';
+import ScrollProgress from './ScrollProgress.astro';
 import ServicesSection from './ServicesSection.astro';
 import StatsSection from './StatsSection.astro';
 import TechSection from './TechSection.astro';
 import { localeEndonyms } from '../i18n/ui';
-import { normalizeLang, useTranslations } from '../i18n/utils';
+import { getLocalizedPath, normalizeLang, useTranslations } from '../i18n/utils';
 import { getImage } from 'astro:assets';
 import brandLogo from '../assets/200iq_logo.png';
 
@@ -28,20 +28,20 @@ const navLogoSrcSet = `${navLogoSm.src} 160w, ${navLogoMd.src} 260w, ${navLogoLg
 const navLogoSizes = '(max-width: 720px) 124px, 208px';
 
 const navLinks = [
-	{ label: t('navigation.links.process'), href: `/${lang}/`, targetId: 'process' },
-	{ label: t('navigation.links.tech'), href: `/${lang}/`, targetId: 'tech' },
-	{ label: t('navigation.links.network'), href: `/${lang}/`, targetId: 'network' },
+	{ label: t('navigation.links.process'), href: getLocalizedPath(lang), targetId: 'process' },
+	{ label: t('navigation.links.tech'), href: getLocalizedPath(lang), targetId: 'tech' },
+	{ label: t('navigation.links.network'), href: getLocalizedPath(lang), targetId: 'network' },
 ];
 
 const localeLinks = [
-	{ code: 'lv', label: localeEndonyms.lv, flagCode: 'lv', href: '/lv/' },
-	{ code: 'en', label: localeEndonyms.en, flagCode: 'gb', href: '/en/' },
-	{ code: 'ru', label: localeEndonyms.ru, flagCode: 'ru', href: '/ru/' },
-	{ code: 'et', label: localeEndonyms.et, flagCode: 'ee', href: '/et/' },
+	{ code: 'lv', label: localeEndonyms.lv, flagCode: 'lv', href: getLocalizedPath('lv') },
+	{ code: 'en', label: localeEndonyms.en, flagCode: 'gb', href: getLocalizedPath('en') },
+	{ code: 'ru', label: localeEndonyms.ru, flagCode: 'ru', href: getLocalizedPath('ru') },
+	{ code: 'et', label: localeEndonyms.et, flagCode: 'ee', href: getLocalizedPath('et') },
 ];
 ---
 
-<ScrollProgressIsland client:idle />
+<ScrollProgress />
 <NavMenu
 	brand={t('navigation.brand')}
 	links={navLinks}

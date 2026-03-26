@@ -4,7 +4,7 @@ import ContactForm from '../../components/ContactForm.jsx';
 import NavMenu from '../../components/NavMenu.astro';
 import FooterSection from '../../components/FooterSection.astro';
 import { localeEndonyms } from '../../i18n/ui';
-import { getDictionary, normalizeLang, useTranslations } from '../../i18n/utils';
+import { getDictionary, getLocalizedPath, normalizeLang, useTranslations } from '../../i18n/utils';
 import { getImage } from 'astro:assets';
 import brandLogo from '../../assets/200iq_logo.png';
 
@@ -20,16 +20,16 @@ const navLogoSrcSet = `${navLogoSm.src} 160w, ${navLogoMd.src} 260w, ${navLogoLg
 const navLogoSizes = '(max-width: 720px) 124px, 208px';
 
 const navLinks = [
-	{ label: t('navigation.links.process'), href: '/et/', targetId: 'process' },
-	{ label: t('navigation.links.tech'), href: '/et/', targetId: 'tech' },
-	{ label: t('navigation.links.network'), href: '/et/', targetId: 'network' },
+	{ label: t('navigation.links.process'), href: getLocalizedPath(lang), targetId: 'process' },
+	{ label: t('navigation.links.tech'), href: getLocalizedPath(lang), targetId: 'tech' },
+	{ label: t('navigation.links.network'), href: getLocalizedPath(lang), targetId: 'network' },
 ];
 
 const localeLinks = [
-	{ code: 'lv', label: localeEndonyms.lv, flagCode: 'lv', href: '/lv/contact' },
-	{ code: 'en', label: localeEndonyms.en, flagCode: 'gb', href: '/en/contact' },
-	{ code: 'ru', label: localeEndonyms.ru, flagCode: 'ru', href: '/ru/contact' },
-	{ code: 'et', label: localeEndonyms.et, flagCode: 'ee', href: '/et/contact' },
+	{ code: 'lv', label: localeEndonyms.lv, flagCode: 'lv', href: getLocalizedPath('lv', '/contact') },
+	{ code: 'en', label: localeEndonyms.en, flagCode: 'gb', href: getLocalizedPath('en', '/contact') },
+	{ code: 'ru', label: localeEndonyms.ru, flagCode: 'ru', href: getLocalizedPath('ru', '/contact') },
+	{ code: 'et', label: localeEndonyms.et, flagCode: 'ee', href: getLocalizedPath('et', '/contact') },
 ];
 ---
 

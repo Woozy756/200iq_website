@@ -375,16 +375,32 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			}
 		};
 
+			let resyncFrame = 0;
+			let settleFrame = 0;
+
+			const cancelResyncFrames = () => {
+				if (resyncFrame) {
+					cancelAnimationFrame(resyncFrame);
+					resyncFrame = 0;
+				}
+				if (settleFrame) {
+					cancelAnimationFrame(settleFrame);
+					settleFrame = 0;
+				}
+			};
+
 			const resyncAfterTransition = () => {
 				geometryRef.current.needsMeasure = true;
-				renderFrame();
-				requestAnimationFrame(() => {
+				cancelResyncFrames();
+				resyncFrame = requestAnimationFrame(() => {
+					resyncFrame = 0;
 					renderFrame();
-				requestAnimationFrame(() => {
-					renderFrame();
+					settleFrame = requestAnimationFrame(() => {
+						settleFrame = 0;
+						renderFrame();
+					});
 				});
-			});
-		};
+			};
 
 		document.addEventListener('astro:after-swap', resyncAfterTransition);
 		document.addEventListener('astro:page-load', resyncAfterTransition);
@@ -392,12 +408,13 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 
 		const unsubscribe = subscribeViewportRaf(renderFrame);
 
-		return () => {
-			document.removeEventListener('astro:after-swap', resyncAfterTransition);
-			document.removeEventListener('astro:page-load', resyncAfterTransition);
-			window.removeEventListener('pageshow', resyncAfterTransition);
-			unsubscribe();
-		};
+			return () => {
+				document.removeEventListener('astro:after-swap', resyncAfterTransition);
+				document.removeEventListener('astro:page-load', resyncAfterTransition);
+				window.removeEventListener('pageshow', resyncAfterTransition);
+				cancelResyncFrames();
+				unsubscribe();
+			};
 	}, [cards.length]);
 
 	return (

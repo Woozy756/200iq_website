@@ -1,5 +1,5 @@
 ---
-import { normalizeLang, useTranslations } from '../i18n/utils';
+import { getLocalizedPath, normalizeLang, useTranslations } from '../i18n/utils';
 
 interface Props {
 	lang: string;
@@ -14,7 +14,7 @@ const t = useTranslations(lang);
 		<h2 class="section-title">{t('network.titleStart')} <br /> {t('network.titleEnd')}</h2>
 		<p class="muted">{t('network.body')}</p>
 		<div class="network-band__cta">
-			<a href={`/${lang}/contact`} class="btn btn-dark network-band__button">{t('network.cta')}</a>
+			<a href={getLocalizedPath(lang, '/contact')} class="btn btn-dark network-band__button">{t('network.cta')}</a>
 		</div>
 	</div>
 </section>

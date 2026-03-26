@@ -1,14 +1,14 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import ContactForm from '../../components/ContactForm.jsx';
-import NavMenu from '../../components/NavMenu.astro';
-import FooterSection from '../../components/FooterSection.astro';
-import { localeEndonyms } from '../../i18n/ui';
-import { getDictionary, getLocalizedPath, normalizeLang, useTranslations } from '../../i18n/utils';
+import Layout from '../layouts/Layout.astro';
+import ContactForm from '../components/ContactForm.jsx';
+import NavMenu from '../components/NavMenu.astro';
+import FooterSection from '../components/FooterSection.astro';
+import { localeEndonyms } from '../i18n/ui';
+import { getDictionary, getLocalizedPath, normalizeLang, useTranslations } from '../i18n/utils';
 import { getImage } from 'astro:assets';
-import brandLogo from '../../assets/200iq_logo.png';
+import brandLogo from '../assets/200iq_logo.png';
 
-const lang = normalizeLang('ru');
+const lang = normalizeLang('lv');
 const t = useTranslations(lang);
 const dictionary = getDictionary(lang);
 const [navLogoSm, navLogoMd, navLogoLg] = await Promise.all([

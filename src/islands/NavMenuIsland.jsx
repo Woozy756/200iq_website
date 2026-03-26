@@ -25,6 +25,18 @@ function getTargetUrl(href) {
 	}
 }
 
+function getLocalizedHref(locale, path = '/') {
+	const normalizedLocale = typeof locale === 'string' && locale ? locale : 'lv';
+	const normalizedPath = path === '/' ? '/' : path.replace(/\/$/, '');
+	if (normalizedLocale === 'lv') {
+		return normalizedPath;
+	}
+	if (normalizedPath === '/') {
+		return `/${normalizedLocale}/`;
+	}
+	return `/${normalizedLocale}${normalizedPath}`;
+}
+
 function scrollToTargetId(targetId) {
 	if (!targetId) return false;
 
@@ -241,7 +253,7 @@ export default function NavMenuIsland({
 			<div className="container nav-inner">
 				<a
 					className="brand brand-logo-link"
-					href={`/${currentLocale}/`}
+					href={getLocalizedHref(currentLocale)}
 					aria-label={brand}
 					onClick={handleBrandClick}
 				>
@@ -274,7 +286,7 @@ export default function NavMenuIsland({
 				</nav>
 
 				<div className="nav-actions">
-					<a href={`/${currentLocale}/contact`} className="btn btn-primary desktop-only">
+					<a href={getLocalizedHref(currentLocale, '/contact')} className="btn btn-primary desktop-only">
 						{ctaLabel}
 					</a>
 					{showLocaleLinks && selectedLocale && (
@@ -347,7 +359,7 @@ export default function NavMenuIsland({
 							{link.label}
 						</a>
 					))}
-					<a href={`/${currentLocale}/contact`} className="btn btn-primary" onClick={() => setIsOpen(false)}>
+					<a href={getLocalizedHref(currentLocale, '/contact')} className="btn btn-primary" onClick={() => setIsOpen(false)}>
 						{ctaLabel}
 					</a>
 				</div>
