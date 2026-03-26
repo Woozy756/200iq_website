@@ -50,8 +50,14 @@ const t = useTranslations(lang);
 			const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 		const splitParagraph = (element) => {
-			if (element.dataset.splitDone) return null;
-			const text = element.textContent || '';
+			const existingOriginalText = element.dataset.splitOriginalText;
+			const text = typeof existingOriginalText === 'string' ? existingOriginalText : (element.textContent || '');
+			if (!text.trim()) return null;
+			if (element.dataset.splitDone === 'true') {
+				element.textContent = text;
+				element.style.transform = '';
+			}
+			element.dataset.splitOriginalText = text;
 			element.textContent = '';
 
 			const srText = document.createElement('span');
@@ -249,7 +255,7 @@ const t = useTranslations(lang);
 				requestUpdate();
 			});
 
-			const handleResize = () => {
+			const refreshMeasurements = () => {
 				if (resizeFrame) return;
 				resizeFrame = window.requestAnimationFrame(() => {
 					resizeFrame = 0;
@@ -257,16 +263,32 @@ const t = useTranslations(lang);
 					requestUpdate();
 				});
 			};
+			const handleResize = () => {
+				refreshMeasurements();
+			};
+			const handleLoad = () => {
+				refreshMeasurements();
+			};
 
 			window.addEventListener('scroll', requestUpdate, { passive: true });
 			window.addEventListener('resize', handleResize);
 			window.addEventListener('orientationchange', handleResize);
+			window.addEventListener('load', handleLoad, { once: true });
+
+			if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+				document.fonts.ready
+					.then(() => {
+						handleLoad();
+					})
+					.catch(() => {});
+			}
 
 			window.__coolSplitCleanup = () => {
 				observer.disconnect();
 				window.removeEventListener('scroll', requestUpdate);
 				window.removeEventListener('resize', handleResize);
 				window.removeEventListener('orientationchange', handleResize);
+				window.removeEventListener('load', handleLoad);
 				if (frame) {
 					window.cancelAnimationFrame(frame);
 					frame = 0;
@@ -279,6 +301,19 @@ const t = useTranslations(lang);
 					window.cancelAnimationFrame(initialMeasureFrame);
 					initialMeasureFrame = 0;
 				}
+				states.forEach((state) => {
+					const originalText = state.element.dataset.splitOriginalText;
+					if (typeof originalText === 'string') {
+						state.element.textContent = originalText;
+					}
+					state.element.style.transform = '';
+					delete state.element.dataset.splitDone;
+					const viewport = state.element.parentElement;
+					if (viewport instanceof HTMLElement) {
+						viewport.style.removeProperty('--mask-top');
+						viewport.style.removeProperty('--mask-bottom');
+					}
+				});
 				activeStates.clear();
 			};
 		}
