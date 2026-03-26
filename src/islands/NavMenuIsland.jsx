@@ -1,8 +1,19 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { subscribeViewportRaf } from './viewportRaf';
+import defaultBrandLogo from '../assets/200iq_logo.png';
 
 const PENDING_NAV_TARGET_KEY = '__pendingNavTarget';
 const PENDING_NAV_TRANSITION_KEY = '__pendingNavTransition';
+
+function resolveAssetSrc(asset) {
+	if (typeof asset === 'string') {
+		return asset;
+	}
+	if (asset && typeof asset === 'object' && typeof asset.src === 'string') {
+		return asset.src;
+	}
+	return null;
+}
 
 function getTargetUrl(href) {
 	if (!href) return null;
@@ -35,6 +46,11 @@ export default function NavMenuIsland({
 	links,
 	localeLinks,
 	currentLocale,
+	logoSrc,
+	logoSrcSet,
+	logoSizes,
+	logoWidth,
+	logoHeight,
 	ctaLabel,
 	openMenuLabel,
 	closeMenuLabel,
@@ -58,6 +74,11 @@ export default function NavMenuIsland({
 		|| null
 	);
 	const selectedLocale = defaultLocaleOption;
+	const navLogoSrc = resolveAssetSrc(logoSrc) || resolveAssetSrc(defaultBrandLogo) || '/200iq_logo.png';
+	const navLogoSrcSet = typeof logoSrcSet === 'string' ? logoSrcSet : undefined;
+	const navLogoSizes = typeof logoSizes === 'string' ? logoSizes : '(max-width: 720px) 124px, 208px';
+	const navLogoWidth = Number.isFinite(logoWidth) ? logoWidth : 260;
+	const navLogoHeight = Number.isFinite(logoHeight) ? logoHeight : 77;
 
 	useEffect(() => {
 		const measureBounds = () => {
@@ -227,10 +248,14 @@ export default function NavMenuIsland({
 					<span className="brand-logo-frame">
 						<img
 							className="brand-logo-image"
-							src="/200iq_logo.png"
+							src={navLogoSrc}
+							srcSet={navLogoSrcSet}
+							sizes={navLogoSizes}
 							alt={brand}
-							width="2048"
-							height="597"
+							width={navLogoWidth}
+							height={navLogoHeight}
+							fetchPriority="high"
+							decoding="async"
 						/>
 					</span>
 				</a>

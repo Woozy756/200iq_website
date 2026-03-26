@@ -1,0 +1,461 @@
+---
+import defaultBrandLogo from '../assets/200iq_logo.png';
+
+interface NavLink {
+	label: string;
+	href: string;
+	targetId?: string;
+}
+
+interface LocaleLink {
+	code: string;
+	label: string;
+	flagCode: string;
+	href: string;
+}
+
+interface Props {
+	brand: string;
+	links: NavLink[];
+	localeLinks: LocaleLink[];
+	currentLocale: string;
+	logoSrc?: string | { src: string };
+	logoSrcSet?: string;
+	logoSizes?: string;
+	logoWidth?: number;
+	logoHeight?: number;
+	ctaLabel: string;
+	openMenuLabel: string;
+	closeMenuLabel: string;
+	languageLabel: string;
+}
+
+const props = Astro.props as Props;
+
+function resolveAssetSrc(asset: unknown) {
+	if (typeof asset === 'string') {
+		return asset;
+	}
+	if (asset && typeof asset === 'object' && 'src' in asset && typeof (asset as { src: unknown }).src === 'string') {
+		return (asset as { src: string }).src;
+	}
+	return null;
+}
+
+const availableLinks = Array.isArray(props.links) ? props.links : [];
+const availableLocales = Array.isArray(props.localeLinks) ? props.localeLinks : [];
+const showLocaleLinks = availableLocales.length > 1;
+const selectedLocale = availableLocales.find((locale) => locale.code === props.currentLocale) ?? availableLocales[0] ?? null;
+const navLogoSrc = resolveAssetSrc(props.logoSrc) ?? resolveAssetSrc(defaultBrandLogo) ?? '/200iq_logo.png';
+const navLogoSrcSet = typeof props.logoSrcSet === 'string' ? props.logoSrcSet : undefined;
+const navLogoSizes = typeof props.logoSizes === 'string' ? props.logoSizes : '(max-width: 720px) 124px, 208px';
+const navLogoWidth = Number.isFinite(props.logoWidth) ? props.logoWidth : 260;
+const navLogoHeight = Number.isFinite(props.logoHeight) ? props.logoHeight : 77;
+const safeLocale = String(props.currentLocale || 'lv').replace(/[^a-z0-9_-]/gi, '');
+const localeMenuId = `locale-popover-${safeLocale}`;
+const brandHref = `/${props.currentLocale}/`;
+const contactHref = `/${props.currentLocale}/contact`;
+---
+
+<header
+	class="nav-shell js-nav-shell"
+	data-open-label={props.openMenuLabel}
+	data-close-label={props.closeMenuLabel}
+>
+	<div class="container nav-inner">
+		<a class="brand brand-logo-link js-brand-link" href={brandHref} aria-label={props.brand}>
+			<span class="brand-logo-frame">
+				<img
+					class="brand-logo-image"
+					src={navLogoSrc}
+					srcset={navLogoSrcSet}
+					sizes={navLogoSizes}
+					alt={props.brand}
+					width={navLogoWidth}
+					height={navLogoHeight}
+					fetchpriority="high"
+					decoding="async"
+				/>
+			</span>
+		</a>
+
+		<nav class="nav-links" aria-label="Primary">
+			{
+				availableLinks.map((link) => (
+					<a
+						class="nav-link js-section-link"
+						href={link.href}
+						data-target-id={link.targetId}
+					>
+						{link.label}
+					</a>
+				))
+			}
+		</nav>
+
+		<div class="nav-actions">
+			<a href={contactHref} class="btn btn-primary desktop-only">
+				{props.ctaLabel}
+			</a>
+			{
+				showLocaleLinks && selectedLocale && (
+					<div class="locale-menu js-locale-menu">
+							<button
+							type="button"
+							class="locale-trigger js-locale-trigger"
+							aria-label={props.languageLabel}
+							aria-haspopup="listbox"
+							aria-expanded="false"
+							aria-controls={localeMenuId}
+							>
+								<span class={`locale-flag fi fi-${selectedLocale.flagCode}`} aria-hidden="true"></span>
+								<span class="locale-trigger-chevron" aria-hidden="true"></span>
+							</button>
+
+						<div
+							id={localeMenuId}
+							class="locale-popover js-locale-popover"
+							role="listbox"
+							aria-label={props.languageLabel}
+						>
+							{
+								availableLocales.map((locale) => (
+										<a
+										href={locale.href}
+										role="option"
+										aria-selected={locale.code === selectedLocale.code ? 'true' : 'false'}
+										class={`locale-option js-locale-option ${locale.code === selectedLocale.code ? 'is-active' : ''}`}
+										>
+											<span class={`locale-option-flag fi fi-${locale.flagCode}`} aria-hidden="true"></span>
+											<span class="locale-option-label">{locale.label}</span>
+										</a>
+								))
+							}
+						</div>
+					</div>
+				)
+			}
+			<button
+				type="button"
+				class="nav-toggle js-nav-toggle"
+				aria-expanded="false"
+				aria-label={props.openMenuLabel}
+			>
+				=
+			</button>
+		</div>
+	</div>
+
+	<div class="mobile-panel js-mobile-panel">
+		<div class="container mobile-panel-inner">
+			{
+				availableLinks.map((link) => (
+					<a
+						href={link.href}
+						class="mobile-link js-section-link"
+						data-target-id={link.targetId}
+					>
+						{link.label}
+					</a>
+				))
+			}
+			<a href={contactHref} class="btn btn-primary js-mobile-cta">
+				{props.ctaLabel}
+			</a>
+		</div>
+	</div>
+</header>
+
+<script is:inline type="module">
+	(() => {
+		const PENDING_NAV_TARGET_KEY = '__pendingNavTarget';
+		const PENDING_NAV_TRANSITION_KEY = '__pendingNavTransition';
+		const CONTROLLERS_KEY = '__navMenuControllers';
+		const BOOTSTRAP_KEY = '__navMenuBootstrapped';
+		const SHELL_SELECTOR = '.js-nav-shell';
+
+		const globalWindow = window;
+		const controllers = globalWindow[CONTROLLERS_KEY] || new Map();
+		globalWindow[CONTROLLERS_KEY] = controllers;
+
+		const getTargetUrl = (href) => {
+			if (!href) return null;
+			try {
+				return new URL(href, window.location.href);
+			} catch {
+				return null;
+			}
+		};
+
+		const scrollToTargetId = (targetId) => {
+			if (!targetId) return false;
+			const target = document.getElementById(targetId);
+			if (!target) return false;
+
+			if (typeof window.__jumpToTargetWithTransition === 'function') {
+				window.__jumpToTargetWithTransition(target);
+				return true;
+			}
+
+			const targetY = target.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0);
+			window.scrollTo(0, targetY);
+			return true;
+		};
+
+		const createController = (shell) => {
+			const abortController = new AbortController();
+			const { signal } = abortController;
+			const navToggle = shell.querySelector('.js-nav-toggle');
+			const mobilePanel = shell.querySelector('.js-mobile-panel');
+			const localeMenu = shell.querySelector('.js-locale-menu');
+			const localeTrigger = shell.querySelector('.js-locale-trigger');
+			const localePopover = shell.querySelector('.js-locale-popover');
+			const brandLink = shell.querySelector('.js-brand-link');
+			const mobileCta = shell.querySelector('.js-mobile-cta');
+			const sectionLinks = shell.querySelectorAll('.js-section-link');
+			const localeOptions = shell.querySelectorAll('.js-locale-option');
+
+			let isOpen = false;
+			let isLocaleOpen = false;
+			let releasePoint = 20;
+			let viewportWidth = 0;
+			let viewportHeight = 0;
+			let frame = 0;
+
+			const openMenuLabel = shell.dataset.openLabel || 'Open menu';
+			const closeMenuLabel = shell.dataset.closeLabel || 'Close menu';
+
+			const setOpen = (nextOpen) => {
+				if (isOpen === nextOpen) return;
+				isOpen = nextOpen;
+				if (mobilePanel) mobilePanel.classList.toggle('is-open', nextOpen);
+				if (navToggle) {
+					navToggle.setAttribute('aria-expanded', String(nextOpen));
+					navToggle.setAttribute('aria-label', nextOpen ? closeMenuLabel : openMenuLabel);
+					navToggle.textContent = nextOpen ? 'x' : '=';
+				}
+			};
+
+			const setLocaleOpen = (nextOpen) => {
+				if (!localeTrigger || !localePopover) return;
+				if (isLocaleOpen === nextOpen) return;
+				isLocaleOpen = nextOpen;
+				localeTrigger.classList.toggle('is-open', nextOpen);
+				localePopover.classList.toggle('is-open', nextOpen);
+				localeTrigger.setAttribute('aria-expanded', String(nextOpen));
+			};
+
+			const closeMenus = () => {
+				setOpen(false);
+				setLocaleOpen(false);
+			};
+
+			const measureBounds = () => {
+				const hero = document.querySelector('.hero:not(.contact-hero)');
+				if (!hero) {
+					releasePoint = 20;
+					return;
+				}
+
+				const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+				const rect = hero.getBoundingClientRect();
+				const heroTop = rect.top + scrollY;
+				const heroTravel = Math.max(hero.offsetHeight - window.innerHeight, 0);
+				releasePoint = heroTravel === 0 ? heroTop + 20 : heroTop + heroTravel + 4;
+			};
+
+			const update = () => {
+				const nextViewportWidth = window.innerWidth || 0;
+				const nextViewportHeight = window.innerHeight || 0;
+				const viewportChanged = nextViewportWidth !== viewportWidth || nextViewportHeight !== viewportHeight;
+
+				if (viewportChanged) {
+					viewportWidth = nextViewportWidth;
+					viewportHeight = nextViewportHeight;
+					measureBounds();
+				}
+
+				const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+				shell.classList.toggle('is-scrolled', scrollY >= releasePoint);
+
+				if (viewportWidth > 980) {
+					setOpen(false);
+				}
+			};
+
+			const queueUpdate = () => {
+				if (frame) return;
+				frame = window.requestAnimationFrame(() => {
+					frame = 0;
+					update();
+				});
+			};
+
+			const handleSectionLinkClick = (event) => {
+				const anchor = event.currentTarget;
+				const targetId = anchor?.dataset?.targetId || '';
+				closeMenus();
+
+				if (!targetId) return;
+
+				const url = getTargetUrl(anchor.getAttribute('href'));
+				if (!url || url.origin !== window.location.origin) return;
+
+				const isSamePage = url.pathname === window.location.pathname && url.search === window.location.search;
+				if (isSamePage) {
+					event.preventDefault();
+					scrollToTargetId(targetId);
+					return;
+				}
+
+				window.sessionStorage.setItem(PENDING_NAV_TARGET_KEY, targetId);
+				window.sessionStorage.setItem(PENDING_NAV_TRANSITION_KEY, '1');
+			};
+
+			const handleLocaleSelect = (event) => {
+				setLocaleOpen(false);
+				const anchor = event.currentTarget;
+				const targetUrl = getTargetUrl(anchor.getAttribute('href'));
+				if (!targetUrl) return;
+
+				const isSamePage =
+					targetUrl.pathname === window.location.pathname &&
+					targetUrl.search === window.location.search &&
+					targetUrl.hash === window.location.hash;
+
+				if (isSamePage) {
+					event.preventDefault();
+				}
+			};
+
+			const handleBrandClick = (event) => {
+				const anchor = event.currentTarget;
+				const url = getTargetUrl(anchor.getAttribute('href'));
+				closeMenus();
+				if (!url) return;
+
+				const isSamePage = url.pathname === window.location.pathname && url.search === window.location.search;
+				if (!isSamePage) return;
+
+				event.preventDefault();
+				window.sessionStorage.removeItem(PENDING_NAV_TARGET_KEY);
+				window.sessionStorage.removeItem(PENDING_NAV_TRANSITION_KEY);
+
+				if (window.__lenis && typeof window.__lenis.scrollTo === 'function') {
+					window.__lenis.scrollTo(0, { immediate: true, force: true });
+					return;
+				}
+
+				window.scrollTo(0, 0);
+			};
+
+			if (navToggle) {
+				navToggle.addEventListener(
+					'click',
+					() => {
+						setLocaleOpen(false);
+						setOpen(!isOpen);
+					},
+					{ signal },
+				);
+			}
+
+			if (localeTrigger) {
+				localeTrigger.addEventListener(
+					'click',
+					() => {
+						setLocaleOpen(!isLocaleOpen);
+					},
+					{ signal },
+				);
+			}
+
+			if (brandLink) {
+				brandLink.addEventListener('click', handleBrandClick, { signal });
+			}
+
+			if (mobileCta) {
+				mobileCta.addEventListener(
+					'click',
+					() => {
+						setOpen(false);
+					},
+					{ signal },
+				);
+			}
+
+			sectionLinks.forEach((link) => {
+				link.addEventListener('click', handleSectionLinkClick, { signal });
+			});
+
+			localeOptions.forEach((localeOption) => {
+				localeOption.addEventListener('click', handleLocaleSelect, { signal });
+			});
+
+			document.addEventListener(
+				'pointerdown',
+				(event) => {
+					if (!isLocaleOpen || !localeMenu) return;
+					if (!localeMenu.contains(event.target)) {
+						setLocaleOpen(false);
+					}
+				},
+				{ signal },
+			);
+
+			document.addEventListener(
+				'keydown',
+				(event) => {
+					if (event.key === 'Escape') {
+						setLocaleOpen(false);
+					}
+				},
+				{ signal },
+			);
+
+			window.addEventListener('scroll', queueUpdate, { signal, passive: true });
+			window.addEventListener('resize', queueUpdate, { signal });
+			window.addEventListener('orientationchange', queueUpdate, { signal });
+			window.addEventListener('load', queueUpdate, { signal });
+			window.addEventListener('pageshow', queueUpdate, { signal });
+			document.addEventListener('astro:after-swap', queueUpdate, { signal });
+			document.addEventListener('astro:page-load', queueUpdate, { signal });
+
+			queueUpdate();
+
+			return () => {
+				abortController.abort();
+				if (frame) {
+					window.cancelAnimationFrame(frame);
+					frame = 0;
+				}
+			};
+		};
+
+		const initAll = () => {
+			document.querySelectorAll(SHELL_SELECTOR).forEach((shell) => {
+				if (!(shell instanceof HTMLElement)) return;
+				if (controllers.has(shell)) return;
+				controllers.set(shell, createController(shell));
+			});
+		};
+
+		const destroyAll = () => {
+			controllers.forEach((cleanup) => {
+				try {
+					cleanup();
+				} catch {}
+			});
+			controllers.clear();
+		};
+
+		if (!globalWindow[BOOTSTRAP_KEY]) {
+			globalWindow[BOOTSTRAP_KEY] = true;
+			document.addEventListener('astro:before-swap', destroyAll);
+			document.addEventListener('astro:page-load', initAll);
+			window.addEventListener('pageshow', initAll);
+		}
+
+		initAll();
+	})();
+</script>

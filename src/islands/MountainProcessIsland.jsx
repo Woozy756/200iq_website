@@ -59,7 +59,7 @@ export default function MountainProcessIsland({ steps = [] }) {
 	const currentProgressRef = useRef(0);
 	const rafIdRef = useRef(0);
 	const lastTickTimeRef = useRef(0);
-	const boundsRef = useRef({ start: 0, span: 1 });
+	const boundsRef = useRef({ start: 0, span: 1, height: 1 });
 	const cardLayoutRef = useRef({ mode: '', entries: [] });
 	const renderCacheRef = useRef({
 		coreDashOffset: '',
@@ -212,8 +212,8 @@ export default function MountainProcessIsland({ steps = [] }) {
 			}
 		};
 
-		const setPathDashoffset = (progress) => {
-			const isDesktop = (window.innerWidth || 1280) > 980;
+		const setPathDashoffset = (progress, viewportWidth) => {
+			const isDesktop = viewportWidth > 980;
 			const dashOffset = 1 - progress;
 			const coreDashOffset = dashOffset.toFixed(7);
 			const glowDashOffset = dashOffset.toFixed(7);
@@ -335,23 +335,24 @@ export default function MountainProcessIsland({ steps = [] }) {
 				}
 			}
 
-			setPathDashoffset(progress);
+			setPathDashoffset(progress, viewportWidth);
 			updateCards(progress, viewportWidth);
 		};
 
-		const measureBounds = () => {
-			if (!resolveLiveNodes()) {
-				return;
-			}
+			const measureBounds = () => {
+				if (!resolveLiveNodes()) {
+					return;
+				}
 			if (!containerRef.current) {
 				return;
 			}
 
-			const rect = containerRef.current.getBoundingClientRect();
-			const start = rect.top + getScrollY();
-			const span = Math.max(containerRef.current.offsetHeight - window.innerHeight, 1);
-			boundsRef.current = { start, span };
-		};
+				const rect = containerRef.current.getBoundingClientRect();
+				const start = rect.top + getScrollY();
+				const height = Math.max(containerRef.current.offsetHeight, 1);
+				const span = Math.max(height - window.innerHeight, 1);
+				boundsRef.current = { start, span, height };
+			};
 
 		const shouldSnapToProgress = () => {
 			if (typeof window === 'undefined' || !window[PROCESS_SNAP_KEY]) {
@@ -440,17 +441,16 @@ export default function MountainProcessIsland({ steps = [] }) {
 			readTarget();
 		};
 
-		const isNearViewport = () => {
-			if (!resolveLiveNodes()) {
-				return false;
-			}
-			if (!containerRef.current) {
-				return false;
-			}
-			const rect = containerRef.current.getBoundingClientRect();
-			const viewportHeight = window.innerHeight || 0;
-			return rect.bottom > -viewportHeight * 0.25 && rect.top < viewportHeight * 1.25;
-		};
+			const isNearViewport = () => {
+				if (!resolveLiveNodes()) {
+					return false;
+				}
+				const viewportHeight = window.innerHeight || 0;
+				const scrollY = getScrollY();
+				const sectionTop = boundsRef.current.start - scrollY;
+				const sectionBottom = sectionTop + boundsRef.current.height;
+				return sectionBottom > -viewportHeight * 0.25 && sectionTop < viewportHeight * 1.25;
+			};
 
 		const applyReducedMotion = (matches) => {
 			prefersReducedMotionRef.current = matches;

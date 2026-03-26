@@ -39,11 +39,12 @@ const dictionary = getDictionary(lang);
 	</stats-animated-grid>
 </section>
 
-<script is:inline>
+<script is:inline type="module">
 	(() => {
-		if (customElements.get('stats-animated-grid')) {
-			return;
-		}
+		const boot = () => {
+			if (customElements.get('stats-animated-grid')) {
+				return;
+			}
 
 		const RANDOM_POOL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 
@@ -298,6 +299,21 @@ const dictionary = getDictionary(lang);
 			}
 		}
 
-		customElements.define('stats-animated-grid', StatsAnimatedGridElement);
+			customElements.define('stats-animated-grid', StatsAnimatedGridElement);
+		};
+
+		const scheduleBoot = () => {
+			if ('requestIdleCallback' in window) {
+				window.requestIdleCallback(boot, { timeout: 1500 });
+				return;
+			}
+			window.setTimeout(boot, 120);
+		};
+
+		if (document.readyState === 'complete') {
+			scheduleBoot();
+		} else {
+			window.addEventListener('load', scheduleBoot, { once: true });
+		}
 	})();
 </script>

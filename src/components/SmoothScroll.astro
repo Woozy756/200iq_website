@@ -1,17 +1,42 @@
 <script>
-	import Lenis from 'lenis';
-
 	const CONTROLLER_KEY = '__smoothScrollController';
+	const LENIS_CONSTRUCTOR_KEY = '__lenisConstructor';
+	const LENIS_LOADER_KEY = '__lenisLoaderPromise';
 	const pendingNavTargetKey = '__pendingNavTarget';
 	const pendingNavTransitionKey = '__pendingNavTransition';
 	const processSnapKey = '__forceProcessSnap';
 	const LENIS_DESKTOP_MIN_WIDTH = 981;
+	const INTERACTION_EVENTS = ['wheel', 'touchstart', 'keydown', 'mousedown'];
+
+	const loadLenisConstructor = () => {
+		if (window[LENIS_CONSTRUCTOR_KEY]) {
+			return Promise.resolve(window[LENIS_CONSTRUCTOR_KEY]);
+		}
+
+		if (!window[LENIS_LOADER_KEY]) {
+			window[LENIS_LOADER_KEY] = import('lenis')
+				.then((module) => {
+					const LenisCtor = module?.default || module?.Lenis || module;
+					window[LENIS_CONSTRUCTOR_KEY] = LenisCtor;
+					return LenisCtor;
+				})
+				.catch(() => null)
+				.finally(() => {
+					delete window[LENIS_LOADER_KEY];
+				});
+		}
+
+		return window[LENIS_LOADER_KEY];
+	};
 
 	function createController() {
 		let lenis = null;
 		let afterSwapFrame = 0;
 		let pageLoadFrame = 0;
 		let viewportMode = null;
+		let loadingLenis = false;
+		let destroyed = false;
+		let hasUserInteraction = false;
 
 		const cancelFrame = (frameId) => {
 			if (frameId) {
@@ -40,27 +65,43 @@
 			clearLenisClasses();
 		};
 
+		const ensureLenis = () => {
+			if (destroyed || loadingLenis || lenis || !isDesktopViewport()) {
+				return;
+			}
+
+			loadingLenis = true;
+			loadLenisConstructor()
+				.then((LenisCtor) => {
+					if (!LenisCtor || destroyed || lenis || !isDesktopViewport()) {
+						return;
+					}
+
+					lenis = new LenisCtor({
+						autoRaf: true,
+						smoothWheel: true,
+						syncTouch: true,
+						gestureOrientation: 'vertical',
+						anchors: false,
+						overscroll: true,
+						lerp: 0.085,
+						wheelMultiplier: 0.95,
+					});
+
+					window.__lenis = lenis;
+					syncLenis();
+				})
+				.finally(() => {
+					loadingLenis = false;
+				});
+		};
+
 		const getLenis = () => {
 			if (!isDesktopViewport()) {
 				return null;
 			}
 
-			if (lenis) {
-				return lenis;
-			}
-
-			lenis = new Lenis({
-				autoRaf: true,
-				smoothWheel: true,
-				syncTouch: true,
-				gestureOrientation: 'vertical',
-				anchors: false,
-				overscroll: true,
-				lerp: 0.085,
-				wheelMultiplier: 0.95,
-			});
-
-			window.__lenis = lenis;
+			ensureLenis();
 			return lenis;
 		};
 
@@ -154,11 +195,23 @@
 			viewportMode = isDesktop;
 
 			if (isDesktop) {
-				syncLenis();
+				if (hasUserInteraction) {
+					ensureLenis();
+					syncLenis();
+				}
 				return;
 			}
 
 			destroyLenis();
+		};
+
+		const onFirstInteraction = () => {
+			if (destroyed || hasUserInteraction) return;
+			hasUserInteraction = true;
+			if (isDesktopViewport()) {
+				ensureLenis();
+				syncLenis();
+			}
 		};
 
 		const handleBeforeSwap = () => {
@@ -195,11 +248,16 @@
 				});
 			};
 
+			INTERACTION_EVENTS.forEach((eventName) => {
+				window.addEventListener(eventName, onFirstInteraction, { passive: true, once: true });
+			});
+
 			refreshLenisMode();
 			handlePageLoad();
 		};
 
 		const destroy = () => {
+			destroyed = true;
 			clearFrames();
 			document.removeEventListener('astro:before-swap', handleBeforeSwap);
 			document.removeEventListener('astro:after-swap', handleAfterSwap);
@@ -207,6 +265,9 @@
 			window.removeEventListener('pageshow', handlePageLoad);
 			window.removeEventListener('resize', refreshLenisMode);
 			window.removeEventListener('beforeunload', destroy);
+			INTERACTION_EVENTS.forEach((eventName) => {
+				window.removeEventListener(eventName, onFirstInteraction);
+			});
 
 			destroyLenis();
 
@@ -227,14 +288,39 @@
 		};
 	}
 
-	const existingController = window[CONTROLLER_KEY];
-	if (existingController && typeof existingController.mount === 'function') {
-		existingController.mount();
-	} else {
+	const mountController = () => {
+		const existingController = window[CONTROLLER_KEY];
+		if (existingController && typeof existingController.mount === 'function') {
+			existingController.mount();
+			return;
+		}
+
 		const controller = createController();
 		window[CONTROLLER_KEY] = controller;
 		controller.mount();
-	}
+	};
+
+	const scheduleControllerMount = () => {
+		const runMount = () => {
+			if ('requestIdleCallback' in window) {
+				window.requestIdleCallback(() => {
+					mountController();
+				}, { timeout: 1200 });
+				return;
+			}
+
+			window.setTimeout(mountController, 120);
+		};
+
+		if (document.readyState === 'complete') {
+			runMount();
+			return;
+		}
+
+		window.addEventListener('load', runMount, { once: true });
+	};
+
+	scheduleControllerMount();
 </script>
 
 <style is:global>

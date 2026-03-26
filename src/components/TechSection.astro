@@ -41,172 +41,188 @@ const dictionary = getDictionary(lang);
 	<div class="section-divider is-bottom" aria-hidden="true"></div>
 </section>
 
-<script is:inline>
+<script is:inline type="module">
 	(() => {
-		if (customElements.get('tech-animated-grid')) {
-			return;
-		}
-
-		const parseTarget = (rawValue) => {
-			const raw = String(rawValue || '').trim();
-			const match = raw.match(/-?\d+(?:[.,]\d+)?/);
-			if (!match) return null;
-
-			const numberText = match[0];
-			const numberIndex = match.index || 0;
-			const prefix = raw.slice(0, numberIndex);
-			const suffix = raw.slice(numberIndex + numberText.length);
-			const decimalSeparator = numberText.includes(',') ? ',' : '.';
-			const decimalPart = numberText.includes('.') ? numberText.split('.')[1] : numberText.split(',')[1];
-			const decimals = decimalPart ? decimalPart.length : 0;
-			const target = Number.parseFloat(numberText.replace(',', '.'));
-
-			if (!Number.isFinite(target)) return null;
-
-			return { raw, target, prefix, suffix, decimals, decimalSeparator };
-		};
-
-		const formatValue = (value, decimals, decimalSeparator) => {
-			const fixed = value.toFixed(decimals);
-			return decimalSeparator === ',' ? fixed.replace('.', ',') : fixed;
-		};
-
-		const easeOut = (t) => 1 - (1 - t) ** 3;
-
-		class TechAnimatedGridElement extends HTMLElement {
-			constructor() {
-				super();
-				this._triggered = false;
-				this._observer = null;
-				this._rafId = 0;
-				this._delayId = 0;
-				this._isCoarsePointer = false;
+		const boot = () => {
+			if (customElements.get('tech-animated-grid')) {
+				return;
 			}
 
-			connectedCallback() {
-				if (this.dataset.techAnimated === 'true') return;
-				this._isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+			const parseTarget = (rawValue) => {
+				const raw = String(rawValue || '').trim();
+				const match = raw.match(/-?\d+(?:[.,]\d+)?/);
+				if (!match) return null;
 
-				this._customBuiltEl = this.querySelector('[data-metric-kind="custom-built"]');
-				this._deliveryTimeEl = this.querySelector('[data-metric-kind="delivery-time"]');
+				const numberText = match[0];
+				const numberIndex = match.index || 0;
+				const prefix = raw.slice(0, numberIndex);
+				const suffix = raw.slice(numberIndex + numberText.length);
+				const decimalSeparator = numberText.includes(',') ? ',' : '.';
+				const decimalPart = numberText.includes('.') ? numberText.split('.')[1] : numberText.split(',')[1];
+				const decimals = decimalPart ? decimalPart.length : 0;
+				const target = Number.parseFloat(numberText.replace(',', '.'));
 
-				if (!this._customBuiltEl || !this._deliveryTimeEl) {
-					return;
-				}
+				if (!Number.isFinite(target)) return null;
 
-				this._customBuiltTarget = this._customBuiltEl.dataset.metricTarget || this._customBuiltEl.textContent || '';
-				this._deliveryTimeTarget = this._deliveryTimeEl.dataset.metricTarget || this._deliveryTimeEl.textContent || '';
+				return { raw, target, prefix, suffix, decimals, decimalSeparator };
+			};
 
-				this._customBuiltParsed = parseTarget(this._customBuiltTarget);
-				this._deliveryTimeParsed = parseTarget(this._deliveryTimeTarget);
+			const formatValue = (value, decimals, decimalSeparator) => {
+				const fixed = value.toFixed(decimals);
+				return decimalSeparator === ',' ? fixed.replace('.', ',') : fixed;
+			};
 
-				if (!this._customBuiltParsed || !this._deliveryTimeParsed) {
-					return;
-				}
+			const easeOut = (t) => 1 - (1 - t) ** 3;
 
-				this._customBuiltEl.textContent = this._customBuiltTarget;
-				this._deliveryTimeEl.textContent = this._deliveryTimeTarget;
-
-				if ('IntersectionObserver' in window) {
-					this._observer = new IntersectionObserver(
-						(entries) => {
-							for (const entry of entries) {
-								if (!entry.isIntersecting) continue;
-								this._triggerOnce();
-								break;
-							}
-						},
-						{
-							threshold: 0,
-							rootMargin: this._isCoarsePointer ? '30% 0px -4% 0px' : '14% 0px -8% 0px',
-						},
-					);
-					this._observer.observe(this);
-				} else {
-					this._triggerOnce();
-				}
-			}
-
-			disconnectedCallback() {
-				this._cleanup();
-			}
-
-			_cleanup() {
-				if (this._observer) {
-					this._observer.disconnect();
+			class TechAnimatedGridElement extends HTMLElement {
+				constructor() {
+					super();
+					this._triggered = false;
 					this._observer = null;
-				}
-				if (this._delayId) {
-					clearTimeout(this._delayId);
-					this._delayId = 0;
-				}
-				if (this._rafId) {
-					cancelAnimationFrame(this._rafId);
 					this._rafId = 0;
-				}
-			}
-
-			_triggerOnce() {
-				if (this._triggered || this.dataset.techAnimated === 'true') return;
-				this._triggered = true;
-
-				if (this._observer) {
-					this._observer.disconnect();
-					this._observer = null;
-				}
-
-				this._delayId = window.setTimeout(() => {
 					this._delayId = 0;
-					this._startAnimation();
-				}, this._isCoarsePointer ? 0 : 70);
-			}
+					this._isCoarsePointer = false;
+				}
 
-			_startAnimation() {
-				const startedAt = performance.now();
-				const durationMs = 1320;
-				const minFrameGapMs = 16;
-				let lastPaintAt = startedAt;
+				connectedCallback() {
+					if (this.dataset.techAnimated === 'true') return;
+					this._isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
 
-				const renderNumeric = (element, parsed, startValue, progress) => {
-					const numericValue = startValue + (parsed.target - startValue) * progress;
-					const roundedValue = parsed.decimals === 0 ? Math.round(numericValue) : numericValue;
-					const nextText = `${parsed.prefix}${formatValue(roundedValue, parsed.decimals, parsed.decimalSeparator)}${parsed.suffix}`;
-					if (element.textContent !== nextText) {
-						element.textContent = nextText;
+					this._customBuiltEl = this.querySelector('[data-metric-kind="custom-built"]');
+					this._deliveryTimeEl = this.querySelector('[data-metric-kind="delivery-time"]');
+
+					if (!this._customBuiltEl || !this._deliveryTimeEl) {
+						return;
 					}
-				};
 
-				const finish = () => {
+					this._customBuiltTarget = this._customBuiltEl.dataset.metricTarget || this._customBuiltEl.textContent || '';
+					this._deliveryTimeTarget = this._deliveryTimeEl.dataset.metricTarget || this._deliveryTimeEl.textContent || '';
+
+					this._customBuiltParsed = parseTarget(this._customBuiltTarget);
+					this._deliveryTimeParsed = parseTarget(this._deliveryTimeTarget);
+
+					if (!this._customBuiltParsed || !this._deliveryTimeParsed) {
+						return;
+					}
+
 					this._customBuiltEl.textContent = this._customBuiltTarget;
 					this._deliveryTimeEl.textContent = this._deliveryTimeTarget;
-					this.dataset.techAnimated = 'true';
-					this._rafId = 0;
-				};
 
-				const tick = (time) => {
-					const progress = Math.min((time - startedAt) / durationMs, 1);
-					if (progress < 1 && time - lastPaintAt < minFrameGapMs) {
-						this._rafId = requestAnimationFrame(tick);
-						return;
+					if ('IntersectionObserver' in window) {
+						this._observer = new IntersectionObserver(
+							(entries) => {
+								for (const entry of entries) {
+									if (!entry.isIntersecting) continue;
+									this._triggerOnce();
+									break;
+								}
+							},
+							{
+								threshold: 0,
+								rootMargin: this._isCoarsePointer ? '30% 0px -4% 0px' : '14% 0px -8% 0px',
+							},
+						);
+						this._observer.observe(this);
+					} else {
+						this._triggerOnce();
 					}
-					lastPaintAt = time;
-					const eased = easeOut(progress);
+				}
 
-					renderNumeric(this._customBuiltEl, this._customBuiltParsed, 0, eased);
-					renderNumeric(this._deliveryTimeEl, this._deliveryTimeParsed, 365, eased);
+				disconnectedCallback() {
+					this._cleanup();
+				}
 
-					if (progress < 1) {
-						this._rafId = requestAnimationFrame(tick);
-						return;
+				_cleanup() {
+					if (this._observer) {
+						this._observer.disconnect();
+						this._observer = null;
+					}
+					if (this._delayId) {
+						clearTimeout(this._delayId);
+						this._delayId = 0;
+					}
+					if (this._rafId) {
+						cancelAnimationFrame(this._rafId);
+						this._rafId = 0;
+					}
+				}
+
+				_triggerOnce() {
+					if (this._triggered || this.dataset.techAnimated === 'true') return;
+					this._triggered = true;
+
+					if (this._observer) {
+						this._observer.disconnect();
+						this._observer = null;
 					}
 
-					finish();
-				};
+					this._delayId = window.setTimeout(() => {
+						this._delayId = 0;
+						this._startAnimation();
+					}, this._isCoarsePointer ? 0 : 70);
+				}
 
-				this._rafId = requestAnimationFrame(tick);
+				_startAnimation() {
+					const startedAt = performance.now();
+					const durationMs = 1320;
+					const minFrameGapMs = 16;
+					let lastPaintAt = startedAt;
+
+					const renderNumeric = (element, parsed, startValue, progress) => {
+						const numericValue = startValue + (parsed.target - startValue) * progress;
+						const roundedValue = parsed.decimals === 0 ? Math.round(numericValue) : numericValue;
+						const nextText = `${parsed.prefix}${formatValue(roundedValue, parsed.decimals, parsed.decimalSeparator)}${parsed.suffix}`;
+						if (element.textContent !== nextText) {
+							element.textContent = nextText;
+						}
+					};
+
+					const finish = () => {
+						this._customBuiltEl.textContent = this._customBuiltTarget;
+						this._deliveryTimeEl.textContent = this._deliveryTimeTarget;
+						this.dataset.techAnimated = 'true';
+						this._rafId = 0;
+					};
+
+					const tick = (time) => {
+						const progress = Math.min((time - startedAt) / durationMs, 1);
+						if (progress < 1 && time - lastPaintAt < minFrameGapMs) {
+							this._rafId = requestAnimationFrame(tick);
+							return;
+						}
+						lastPaintAt = time;
+						const eased = easeOut(progress);
+
+						renderNumeric(this._customBuiltEl, this._customBuiltParsed, 0, eased);
+						renderNumeric(this._deliveryTimeEl, this._deliveryTimeParsed, 365, eased);
+
+						if (progress < 1) {
+							this._rafId = requestAnimationFrame(tick);
+							return;
+						}
+
+						finish();
+					};
+
+					this._rafId = requestAnimationFrame(tick);
+				}
 			}
-		}
 
-		customElements.define('tech-animated-grid', TechAnimatedGridElement);
+			customElements.define('tech-animated-grid', TechAnimatedGridElement);
+		};
+
+		const scheduleBoot = () => {
+			if ('requestIdleCallback' in window) {
+				window.requestIdleCallback(boot, { timeout: 1500 });
+				return;
+			}
+			window.setTimeout(boot, 120);
+		};
+
+		if (document.readyState === 'complete') {
+			scheduleBoot();
+		} else {
+			window.addEventListener('load', scheduleBoot, { once: true });
+		}
 	})();
 </script>

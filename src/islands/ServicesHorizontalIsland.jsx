@@ -97,6 +97,14 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 		value: 0,
 		primed: false,
 	});
+	const geometryRef = useRef({
+		start: 0,
+		span: 1,
+		frameWidth: 0,
+		viewportWidth: 0,
+		viewportHeight: 0,
+		needsMeasure: true,
+	});
 	const layoutRef = useRef({
 		cardWidth: 0,
 		glowSize: 0,
@@ -105,10 +113,10 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 	});
 
 	useEffect(() => {
-		const resolveLiveNodes = () => {
-			const currentContainer = containerRef.current;
-			const candidates = document.querySelectorAll('.svcx-scroll');
-			let newestContainer = null;
+			const resolveLiveNodes = () => {
+				const currentContainer = containerRef.current;
+				const candidates = document.querySelectorAll('.svcx-scroll');
+				let newestContainer = null;
 			for (let index = candidates.length - 1; index >= 0; index -= 1) {
 				const node = candidates[index];
 				if (node && document.contains(node)) {
@@ -123,17 +131,35 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 				return { containerNode: null, cardNodes: [], glowNodes: [] };
 			}
 
-			if (containerRef.current !== containerNode) {
-				containerRef.current = containerNode;
-			}
+				if (containerRef.current !== containerNode) {
+					containerRef.current = containerNode;
+					geometryRef.current.needsMeasure = true;
+				}
 
 			const cardNodes = Array.from(containerNode.querySelectorAll('.svcx-card'));
 			const glowNodes = Array.from(containerNode.querySelectorAll('.svcx-glow-spot'));
 			cardRefs.current = cardNodes;
 			glowRefs.current = glowNodes;
 
-			return { containerNode, cardNodes, glowNodes };
-		};
+				return { containerNode, cardNodes, glowNodes };
+			};
+
+			const readScrollY = () => window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+
+			const measureGeometry = (containerNode, viewportWidth, viewportHeight) => {
+				if (!containerNode) return;
+				const scrollY = readScrollY();
+				const rect = containerNode.getBoundingClientRect();
+				const frameWidth = Math.max(1, containerNode.clientWidth || viewportWidth);
+				const span = Math.max(containerNode.offsetHeight - viewportHeight, 1);
+
+				geometryRef.current.start = rect.top + scrollY;
+				geometryRef.current.span = span;
+				geometryRef.current.frameWidth = frameWidth;
+				geometryRef.current.viewportWidth = viewportWidth;
+				geometryRef.current.viewportHeight = viewportHeight;
+				geometryRef.current.needsMeasure = false;
+			};
 
 		const getStatePositions = ({
 			arrivedCount,
@@ -170,13 +196,21 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			return positions;
 		};
 
-		const renderFrame = () => {
-			const { containerNode, cardNodes, glowNodes } = resolveLiveNodes();
-			if (!containerNode) return;
+			const renderFrame = () => {
+				const { containerNode, cardNodes, glowNodes } = resolveLiveNodes();
+				if (!containerNode) return;
 
-			const viewportWidth = window.innerWidth || 1280;
-			const frameWidth = Math.max(1, containerNode.clientWidth || viewportWidth);
-			const count = Math.max(cards.length, cardNodes.length, 1);
+				const viewportWidth = window.innerWidth || 1280;
+				const viewportHeight = window.innerHeight || 0;
+				const geometry = geometryRef.current;
+				const viewportChanged =
+					geometry.viewportWidth !== viewportWidth || geometry.viewportHeight !== viewportHeight;
+				if (viewportChanged || geometry.needsMeasure) {
+					measureGeometry(containerNode, viewportWidth, viewportHeight);
+				}
+
+				const frameWidth = Math.max(1, geometryRef.current.frameWidth || viewportWidth);
+				const count = Math.max(cards.length, cardNodes.length, 1);
 			const slots = frameWidth >= 1200 ? 4 : frameWidth >= 920 ? 3 : frameWidth >= 640 ? 2 : 1;
 			const gap = frameWidth >= 1200 ? 24 : frameWidth >= 920 ? 20 : frameWidth >= 640 ? 14 : 12;
 			const sidePadding = frameWidth > 980 ? 40 : frameWidth > 720 ? 32 : 20;
@@ -185,16 +219,17 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			const widthFromSlots = (frameWidth - sidePadding * 2 - gap * (slots - 1)) / slots;
 			const cardWidth = clamp(widthFromSlots, minCardWidth, maxCardWidth);
 
-			const rect = containerNode.getBoundingClientRect();
-			const span = Math.max(rect.height - window.innerHeight, 1);
-			const isTouchSingleColumn =
-				slots === 1 && window.matchMedia('(pointer: coarse)').matches;
-			const desktopProgress = clamp(-rect.top / span, 0, 1);
-			const mobileEntryProgress = clamp(
-				(window.innerHeight - rect.top) / Math.max(span + window.innerHeight, 1),
-				0,
-				1,
-			);
+				const scrollY = readScrollY();
+				const sectionTop = geometryRef.current.start - scrollY;
+				const span = geometryRef.current.span;
+				const isTouchSingleColumn =
+					slots === 1 && window.matchMedia('(pointer: coarse)').matches;
+				const desktopProgress = clamp((scrollY - geometryRef.current.start) / span, 0, 1);
+				const mobileEntryProgress = clamp(
+					(viewportHeight - sectionTop) / Math.max(span + viewportHeight, 1),
+					0,
+					1,
+				);
 			const progress = isTouchSingleColumn ? mobileEntryProgress : desktopProgress;
 			const revealVisibility = clamp((progress - 0.01) / 0.08, 0, 1);
 			containerNode.style.setProperty('--svcx-reveal-visibility', `${revealVisibility}`);
@@ -264,23 +299,30 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			const needsHeightRecalc =
 				cardWidthChanged || layout.cardHeight <= 0 || layout.cardCount !== cardCount;
 
-			if (needsHeightRecalc) {
-				tallestCardHeight = 0;
-				for (let index = 0; index < cardCount; index += 1) {
-					const cardNode = cardNodes[index];
-					if (!cardNode) continue;
-
+				if (needsHeightRecalc) {
+					tallestCardHeight = 0;
 					const widthValue = `${cardWidth}px`;
-					if (cardNode.style.width !== widthValue) {
-						cardNode.style.width = widthValue;
-					}
-					cardNode.style.height = '';
 
-					const naturalHeight = Math.max(
-						cardNode.getBoundingClientRect().height,
-						cardNode.scrollHeight,
-					);
-					tallestCardHeight = Math.max(tallestCardHeight, naturalHeight);
+					// Batch writes first.
+					for (let index = 0; index < cardCount; index += 1) {
+						const cardNode = cardNodes[index];
+						if (!cardNode) continue;
+
+						if (cardNode.style.width !== widthValue) {
+							cardNode.style.width = widthValue;
+						}
+						cardNode.style.height = '';
+					}
+
+					// Then batch reads to avoid write/read interleaving reflow inside the loop.
+					for (let index = 0; index < cardCount; index += 1) {
+						const cardNode = cardNodes[index];
+						if (!cardNode) continue;
+						const naturalHeight = Math.max(
+							cardNode.getBoundingClientRect().height,
+							cardNode.scrollHeight,
+						);
+						tallestCardHeight = Math.max(tallestCardHeight, naturalHeight);
 				}
 
 				layout.cardHeight = Math.ceil(tallestCardHeight);
@@ -333,10 +375,11 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			}
 		};
 
-		const resyncAfterTransition = () => {
-			renderFrame();
-			requestAnimationFrame(() => {
+			const resyncAfterTransition = () => {
+				geometryRef.current.needsMeasure = true;
 				renderFrame();
+				requestAnimationFrame(() => {
+					renderFrame();
 				requestAnimationFrame(() => {
 					renderFrame();
 				});

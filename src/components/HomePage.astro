@@ -1,7 +1,7 @@
 ---
 import FooterSection from './FooterSection.astro';
 import IntroSection from './IntroSection.astro';
-import NavMenuIsland from '../islands/NavMenuIsland.jsx';
+import NavMenu from './NavMenu.astro';
 import NetworkSection from './NetworkSection.astro';
 import ProcessSection from './ProcessSection.astro';
 import ScrollProgressIsland from '../islands/ScrollProgressIsland.jsx';
@@ -10,6 +10,8 @@ import StatsSection from './StatsSection.astro';
 import TechSection from './TechSection.astro';
 import { localeEndonyms } from '../i18n/ui';
 import { normalizeLang, useTranslations } from '../i18n/utils';
+import { getImage } from 'astro:assets';
+import brandLogo from '../assets/200iq_logo.png';
 
 interface Props {
 	lang: string;
@@ -17,6 +19,13 @@ interface Props {
 
 const lang = normalizeLang(Astro.props.lang);
 const t = useTranslations(lang);
+const [navLogoSm, navLogoMd, navLogoLg] = await Promise.all([
+	getImage({ src: brandLogo, width: 160, format: 'png' }),
+	getImage({ src: brandLogo, width: 260, format: 'png' }),
+	getImage({ src: brandLogo, width: 420, format: 'png' }),
+]);
+const navLogoSrcSet = `${navLogoSm.src} 160w, ${navLogoMd.src} 260w, ${navLogoLg.src} 420w`;
+const navLogoSizes = '(max-width: 720px) 124px, 208px';
 
 const navLinks = [
 	{ label: t('navigation.links.process'), href: `/${lang}/`, targetId: 'process' },
@@ -32,13 +41,17 @@ const localeLinks = [
 ];
 ---
 
-<ScrollProgressIsland client:load />
-<NavMenuIsland
-	client:load
+<ScrollProgressIsland client:idle />
+<NavMenu
 	brand={t('navigation.brand')}
 	links={navLinks}
 	localeLinks={localeLinks}
 	currentLocale={lang}
+	logoSrc={navLogoMd.src}
+	logoSrcSet={navLogoSrcSet}
+	logoSizes={navLogoSizes}
+	logoWidth={260}
+	logoHeight={77}
 	ctaLabel={t('navigation.cta')}
 	openMenuLabel={t('navigation.openMenu')}
 	closeMenuLabel={t('navigation.closeMenu')}

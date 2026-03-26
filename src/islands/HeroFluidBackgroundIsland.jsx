@@ -430,6 +430,21 @@ export default function HeroFluidBackgroundIsland() {
 		const { gl, ext } = context;
 		const host = canvas.closest('.hero-stage') ?? canvas.closest('.hero') ?? canvas.parentElement;
 		if (!host) return undefined;
+		const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+		const runtimeConfig = {
+			...CONFIG,
+			...(isCoarsePointer
+				? {
+					SIM_RESOLUTION: 96,
+					DYE_RESOLUTION: 512,
+					PRESSURE_ITERATIONS: 14,
+					CURL: 20,
+					SPLAT_FORCE: 3400,
+				}
+				: null),
+		};
+		let hostRect = host.getBoundingClientRect();
+		let hostRectDirty = false;
 
 		const vertexShader = compileShader(gl, gl.VERTEX_SHADER, BASE_VERTEX_SHADER);
 		if (!vertexShader) return undefined;
@@ -505,8 +520,8 @@ export default function HeroFluidBackgroundIsland() {
 					gl.bindTexture(gl.TEXTURE_2D, texture);
 					return id;
 				},
+				};
 			};
-		};
 
 		const createDoubleFBO = (width, height, internalFormat, format, type, filtering) => {
 			let fbo1 = createFBO(width, height, internalFormat, format, type, filtering);
@@ -565,13 +580,15 @@ export default function HeroFluidBackgroundIsland() {
 		let pressure;
 		let lastUpdateTime = Date.now();
 		let animationFrame = 0;
+		let inactivityTimer = 0;
+		let isAnimating = false;
 		const pointers = [createPointer()];
 
 		const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
 
 		const initFramebuffers = () => {
-			const simRes = getResolution(gl, CONFIG.SIM_RESOLUTION);
-			const dyeRes = getResolution(gl, CONFIG.DYE_RESOLUTION);
+			const simRes = getResolution(gl, runtimeConfig.SIM_RESOLUTION);
+			const dyeRes = getResolution(gl, runtimeConfig.DYE_RESOLUTION);
 			const texType = ext.halfFloatTexType;
 			const rgba = ext.formatRGBA;
 			const rg = ext.formatRG;
@@ -590,6 +607,18 @@ export default function HeroFluidBackgroundIsland() {
 			pressure = createDoubleFBO(simRes.width, simRes.height, r.internalFormat, r.format, texType, gl.NEAREST);
 		};
 
+		const markHostRectDirty = () => {
+			hostRectDirty = true;
+		};
+
+		const readHostRect = () => {
+			if (hostRectDirty) {
+				hostRect = host.getBoundingClientRect();
+				hostRectDirty = false;
+			}
+			return hostRect;
+		};
+
 		const resizeCanvas = () => {
 			const width = Math.max(2, canvas.clientWidth);
 			const height = Math.max(2, canvas.clientHeight);
@@ -598,6 +627,7 @@ export default function HeroFluidBackgroundIsland() {
 			canvas.height = height;
 			gl.viewport(0, 0, width, height);
 			initFramebuffers();
+			markHostRectDirty();
 		};
 
 		const correctDeltaX = (delta) => {
@@ -643,7 +673,7 @@ export default function HeroFluidBackgroundIsland() {
 			gl.uniform3f(programs.splat.uniforms.color, dx, dy, 0);
 			gl.uniform1f(
 				programs.splat.uniforms.radius,
-				aspectRatio > 1 ? CONFIG.SPLAT_RADIUS * aspectRatio : CONFIG.SPLAT_RADIUS,
+				aspectRatio > 1 ? runtimeConfig.SPLAT_RADIUS * aspectRatio : runtimeConfig.SPLAT_RADIUS,
 			);
 			blit(velocity.write);
 			velocity.swap();
@@ -654,16 +684,16 @@ export default function HeroFluidBackgroundIsland() {
 			dye.swap();
 		};
 
-                const splatPointer = (pointer) => {
-                        const speed = Math.hypot(pointer.deltaX, pointer.deltaY);
-                        const ramp = Math.min(1, Math.max(0, (speed - 0.0022) / 0.02));
-                        const easedRamp = ramp * ramp * ramp * ramp;
-                        if (easedRamp <= 0) return;
+		const splatPointer = (pointer) => {
+			const speed = Math.hypot(pointer.deltaX, pointer.deltaY);
+			const ramp = Math.min(1, Math.max(0, (speed - 0.0022) / 0.02));
+			const easedRamp = ramp * ramp * ramp * ramp;
+			if (easedRamp <= 0) return;
 
-                        const dx = pointer.deltaX * CONFIG.SPLAT_FORCE * easedRamp;
-                        const dy = pointer.deltaY * CONFIG.SPLAT_FORCE * easedRamp;
-                        splat(pointer.texcoordX, pointer.texcoordY, dx, dy, pointer.color);
-                };
+			const dx = pointer.deltaX * runtimeConfig.SPLAT_FORCE * easedRamp;
+			const dy = pointer.deltaY * runtimeConfig.SPLAT_FORCE * easedRamp;
+			splat(pointer.texcoordX, pointer.texcoordY, dx, dy, pointer.color);
+		};
 
 		const calcDeltaTime = () => {
 			const now = Date.now();
@@ -685,7 +715,7 @@ export default function HeroFluidBackgroundIsland() {
 			gl.uniform2f(programs.vorticity.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
 			gl.uniform1i(programs.vorticity.uniforms.uVelocity, velocity.read.attach(0));
 			gl.uniform1i(programs.vorticity.uniforms.uCurl, curl.attach(1));
-			gl.uniform1f(programs.vorticity.uniforms.curl, CONFIG.CURL);
+			gl.uniform1f(programs.vorticity.uniforms.curl, runtimeConfig.CURL);
 			gl.uniform1f(programs.vorticity.uniforms.dt, dt);
 			blit(velocity.write);
 			velocity.swap();
@@ -702,7 +732,7 @@ export default function HeroFluidBackgroundIsland() {
 			bindAttribute(programs.clear);
 			gl.uniform2f(programs.clear.uniforms.texelSize, pressure.texelSizeX, pressure.texelSizeY);
 			gl.uniform1i(programs.clear.uniforms.uTexture, pressure.read.attach(0));
-			gl.uniform1f(programs.clear.uniforms.value, CONFIG.PRESSURE);
+			gl.uniform1f(programs.clear.uniforms.value, runtimeConfig.PRESSURE);
 			blit(pressure.write);
 			pressure.swap();
 		};
@@ -711,7 +741,7 @@ export default function HeroFluidBackgroundIsland() {
 			bindAttribute(programs.pressure);
 			gl.uniform2f(programs.pressure.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
 			gl.uniform1i(programs.pressure.uniforms.uDivergence, divergence.attach(0));
-			for (let i = 0; i < CONFIG.PRESSURE_ITERATIONS; i += 1) {
+			for (let i = 0; i < runtimeConfig.PRESSURE_ITERATIONS; i += 1) {
 				gl.uniform1i(programs.pressure.uniforms.uPressure, pressure.read.attach(1));
 				blit(pressure.write);
 				pressure.swap();
@@ -738,14 +768,14 @@ export default function HeroFluidBackgroundIsland() {
 			gl.uniform1i(programs.advection.uniforms.uVelocity, velocity.read.attach(0));
 			gl.uniform1i(programs.advection.uniforms.uSource, velocity.read.attach(0));
 			gl.uniform1f(programs.advection.uniforms.dt, dt);
-			gl.uniform1f(programs.advection.uniforms.dissipation, CONFIG.VELOCITY_DISSIPATION);
+			gl.uniform1f(programs.advection.uniforms.dissipation, runtimeConfig.VELOCITY_DISSIPATION);
 			blit(velocity.write);
 			velocity.swap();
 
 			gl.uniform2f(programs.advection.uniforms.dyeTexelSize, dye.texelSizeX, dye.texelSizeY);
 			gl.uniform1i(programs.advection.uniforms.uVelocity, velocity.read.attach(0));
 			gl.uniform1i(programs.advection.uniforms.uSource, dye.read.attach(1));
-			gl.uniform1f(programs.advection.uniforms.dissipation, CONFIG.DENSITY_DISSIPATION);
+			gl.uniform1f(programs.advection.uniforms.dissipation, runtimeConfig.DENSITY_DISSIPATION);
 			blit(dye.write);
 			dye.swap();
 		};
@@ -781,29 +811,69 @@ export default function HeroFluidBackgroundIsland() {
 			const dt = calcDeltaTime();
 			step(dt);
 			render();
+			if (isAnimating) {
+				animationFrame = requestAnimationFrame(update);
+			}
+		};
+
+		const clearInactivityTimer = () => {
+			if (!inactivityTimer) return;
+			window.clearTimeout(inactivityTimer);
+			inactivityTimer = 0;
+		};
+
+		const stopAnimation = () => {
+			clearInactivityTimer();
+			if (!isAnimating) return;
+			isAnimating = false;
+			if (animationFrame) {
+				cancelAnimationFrame(animationFrame);
+				animationFrame = 0;
+			}
+		};
+
+		const startAnimation = () => {
+			if (isAnimating) return;
+			isAnimating = true;
+			lastUpdateTime = Date.now();
 			animationFrame = requestAnimationFrame(update);
 		};
 
+		const bumpAnimationBudget = () => {
+			startAnimation();
+			clearInactivityTimer();
+			inactivityTimer = window.setTimeout(() => {
+				stopAnimation();
+			}, 1800);
+		};
+
 		const getRelativePoint = (clientX, clientY) => {
-			const rect = host.getBoundingClientRect();
+			const rect = readHostRect();
+			const safeWidth = Math.max(rect.width, 1);
+			const safeHeight = Math.max(rect.height, 1);
 			return {
-				x: (clientX - rect.left) / rect.width,
-				y: 1 - (clientY - rect.top) / rect.height,
+				x: (clientX - rect.left) / safeWidth,
+				y: 1 - (clientY - rect.top) / safeHeight,
 			};
 		};
 
 		const onMouseEnter = () => {
 			pointers[0].down = true;
 			pointers[0].color = randomColor();
+			bumpAnimationBudget();
 		};
 
 		const onMouseLeave = () => {
 			pointers[0].down = false;
+			bumpAnimationBudget();
 		};
 
 		const onMouseMove = (event) => {
 			const pos = getRelativePoint(event.clientX, event.clientY);
 			updatePointerMoveData(pointers[0], pos.x, pos.y);
+			if (pointers[0].moved) {
+				bumpAnimationBudget();
+			}
 		};
 
 		const onTouchStart = (event) => {
@@ -815,6 +885,7 @@ export default function HeroFluidBackgroundIsland() {
 				const pos = getRelativePoint(targetTouches[i].clientX, targetTouches[i].clientY);
 				updatePointerDownData(pointers[i], targetTouches[i].identifier, pos.x, pos.y);
 			}
+			bumpAnimationBudget();
 		};
 
 		const onTouchMove = (event) => {
@@ -825,6 +896,7 @@ export default function HeroFluidBackgroundIsland() {
 				const pos = getRelativePoint(targetTouches[i].clientX, targetTouches[i].clientY);
 				updatePointerMoveData(pointer, pos.x, pos.y);
 			}
+			bumpAnimationBudget();
 		};
 
 		const onTouchEnd = (event) => {
@@ -834,6 +906,7 @@ export default function HeroFluidBackgroundIsland() {
 					pointer.down = false;
 				}
 			}
+			bumpAnimationBudget();
 		};
 
 		initBlit();
@@ -846,11 +919,14 @@ export default function HeroFluidBackgroundIsland() {
 		host.addEventListener('touchmove', onTouchMove, { passive: true });
 		host.addEventListener('touchend', onTouchEnd);
 		window.addEventListener('resize', resizeCanvas);
-
-		update();
+		window.addEventListener('scroll', markHostRectDirty, { passive: true });
+		window.addEventListener('orientationchange', markHostRectDirty);
+		window.addEventListener('pageshow', markHostRectDirty);
+		document.addEventListener('astro:after-swap', markHostRectDirty);
+		document.addEventListener('astro:page-load', markHostRectDirty);
 
 		return () => {
-			cancelAnimationFrame(animationFrame);
+			stopAnimation();
 			host.removeEventListener('mouseenter', onMouseEnter);
 			host.removeEventListener('mouseleave', onMouseLeave);
 			host.removeEventListener('mousemove', onMouseMove);
@@ -858,6 +934,11 @@ export default function HeroFluidBackgroundIsland() {
 			host.removeEventListener('touchmove', onTouchMove);
 			host.removeEventListener('touchend', onTouchEnd);
 			window.removeEventListener('resize', resizeCanvas);
+			window.removeEventListener('scroll', markHostRectDirty);
+			window.removeEventListener('orientationchange', markHostRectDirty);
+			window.removeEventListener('pageshow', markHostRectDirty);
+			document.removeEventListener('astro:after-swap', markHostRectDirty);
+			document.removeEventListener('astro:page-load', markHostRectDirty);
 
 			deleteDoubleFBO(dye);
 			deleteDoubleFBO(velocity);

@@ -12,7 +12,7 @@ const t = useTranslations(lang);
 
 <section class="hero section">
 	<div class="hero-stage">
-		<HeroFluidBackgroundIsland client:load />
+		<HeroFluidBackgroundIsland client:idle />
 
 		<div class="container hero-content">
 			<div class="hero-grid">
@@ -40,7 +40,7 @@ const t = useTranslations(lang);
 	<div class="section-divider is-bottom" aria-hidden="true"></div>
 </section>
 
-<script is:inline>
+<script is:inline type="module">
 	function initCoolSplit() {
 		const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -70,21 +70,61 @@ const t = useTranslations(lang);
 
 			element.appendChild(fragment);
 			element.dataset.splitDone = 'true';
-			
-			// Cache character Y-positions relative to the paragraph
-			const cachePositions = () => {
-				chars.forEach((char) => {
-					char.dataset.y = char.offsetTop;
-				});
+			const viewport = element.parentElement;
+			if (!(viewport instanceof HTMLElement)) {
+				return null;
+			}
+			const hero = element.closest('.hero');
+			const charPositions = new Float32Array(chars.length);
+			const metrics = {
+				heroStart: 0,
+				heroTravel: 1,
+				paragraphHeight: 1,
+				viewportHeight: 1,
+				maxTranslate: 0,
+				fadeZone: 1,
+				middleOffset: 1,
+				scrollDenominator: 1,
+				canScroll: false,
 			};
-			
-			// Schedule initial caching so styles render first
-			requestAnimationFrame(cachePositions);
-			
+
+			// Batch layout reads in one pass and reuse cached values during scroll-time paint.
+			const measure = () => {
+				const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+				const heroRect = hero ? hero.getBoundingClientRect() : null;
+				const heroHeight = hero ? hero.offsetHeight : window.innerHeight;
+				const viewportHeight = Math.max(1, viewport.offsetHeight);
+				const paragraphHeight = Math.max(1, element.offsetHeight);
+				const heroStart = heroRect ? heroRect.top + scrollY : scrollY;
+				const heroTravel = Math.max(heroHeight - window.innerHeight, 1);
+				const maxTranslate = Math.max(0, paragraphHeight - viewportHeight + (viewportHeight * 0.15));
+				const fadeZone = Math.max(1, Math.min(120, viewportHeight * 0.25));
+				const middleOffset = viewportHeight * 0.4;
+				const scrollDenominator = Math.max(0.001, paragraphHeight - middleOffset);
+
+				metrics.heroStart = heroStart;
+				metrics.heroTravel = heroTravel;
+				metrics.paragraphHeight = paragraphHeight;
+				metrics.viewportHeight = viewportHeight;
+				metrics.maxTranslate = maxTranslate;
+				metrics.fadeZone = fadeZone;
+				metrics.middleOffset = middleOffset;
+				metrics.scrollDenominator = scrollDenominator;
+				metrics.canScroll = maxTranslate > 0;
+
+				for (let index = 0; index < chars.length; index += 1) {
+					charPositions[index] = chars[index].offsetTop;
+				}
+			};
+
+			requestAnimationFrame(measure);
+
 			return {
 				element,
 				chars,
-				cachePositions,
+				charPositions,
+				metrics,
+				measure,
 			};
 		};
 
@@ -97,35 +137,32 @@ const t = useTranslations(lang);
 		let frame = 0;
 
 		const getScrollProgress = (state) => {
-			const hero = state.element.closest('.hero');
-			if (!hero) return 0;
-
-			const heroRect = hero.getBoundingClientRect();
-			const heroTravel = Math.max(hero.offsetHeight - window.innerHeight, 1);
-			return clamp(-heroRect.top / heroTravel, 0, 1);
+			const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+			return clamp((scrollY - state.metrics.heroStart) / state.metrics.heroTravel, 0, 1);
 		};
 
 		const paintState = (state) => {
 			const progress = getScrollProgress(state);
 			const p = state.element;
 			const viewport = p.parentElement; // .hero-side-viewport
-			
+			if (!(viewport instanceof HTMLElement)) return;
+			const {
+				paragraphHeight,
+				maxTranslate,
+				fadeZone,
+				middleOffset,
+				scrollDenominator,
+				canScroll,
+			} = state.metrics;
+
 			// 1. Calculate scroll range
 			// Text scrolls up just enough so the bottom line stays within the viewport.
-			const maxTranslate = Math.max(0, p.offsetHeight - viewport.offsetHeight + (viewport.offsetHeight * 0.15));
-			const canScroll = maxTranslate > 0;
-			
-			// 2. Calculate active reveal wave
-			// The zone height across which characters transition from muted to gold.
-			const fadeZone = Math.min(120, viewport.offsetHeight * 0.25);
-
 			// The wave starts above the paragraph and sweeps to the bottom.
-			const waveCharY = (progress * (p.offsetHeight + fadeZone * 2)) - fadeZone;
-			
+			const waveCharY = (progress * (paragraphHeight + fadeZone * 2)) - fadeZone;
+
 			// 3. Apply scroll transform (delayed)
 			// Don't start physically scrolling the block until the light-up wave reaches the target threshold
-			const middleOffset = viewport.offsetHeight * 0.4; // Start scrolling when wave is ~40% down the viewport
-			const scrollProgress = clamp((waveCharY - middleOffset) / Math.max(0.001, p.offsetHeight - middleOffset), 0, 1);
+			const scrollProgress = clamp((waveCharY - middleOffset) / scrollDenominator, 0, 1);
 			const translateY = canScroll ? scrollProgress * maxTranslate : 0;
 			p.style.transform = `translate3d(0, ${-translateY}px, 0)`;
 
@@ -144,17 +181,18 @@ const t = useTranslations(lang);
 				viewport.style.setProperty('--mask-bottom', '1');
 			}
 
-			state.chars.forEach((char) => {
-				const charY = parseFloat(char.dataset.y || 0);
-				
+			for (let index = 0; index < state.chars.length; index += 1) {
+				const char = state.chars[index];
+				const charY = state.charPositions[index] || 0;
+
 				// Calculate distance of this character from the sweep wave.
-				const distance = waveCharY - charY; 
-				
+				const distance = waveCharY - charY;
+
 				// Normalize to roughly 0 (muted) or 1 (gold) based on distance
 				const rawReveal = clamp((distance + fadeZone) / (fadeZone * 2), 0, 1);
 				const easedReveal = rawReveal * rawReveal * (3 - 2 * rawReveal);
 				char.style.setProperty('--reveal', easedReveal.toFixed(3));
-			});
+			}
 		};
 
 		const update = () => {
@@ -192,11 +230,12 @@ const t = useTranslations(lang);
 
 		states.forEach((state) => {
 			observer.observe(state.element);
+			state.measure();
 			paintState(state);
 		});
 
 		const handleResize = () => {
-			states.forEach(state => state.cachePositions());
+			states.forEach((state) => state.measure());
 			requestUpdate();
 		};
 
@@ -418,7 +457,36 @@ const t = useTranslations(lang);
 		initHeroNoButton();
 	};
 
-	initHeroSection();
-	document.addEventListener('astro:page-load', initHeroSection);
-	document.addEventListener('astro:before-swap', cleanupHeroNoButton);
+	let scheduledHeroInitId = 0;
+
+	const clearScheduledHeroInit = () => {
+		if (!scheduledHeroInitId) return;
+		if ('cancelIdleCallback' in window) {
+			window.cancelIdleCallback(scheduledHeroInitId);
+		} else {
+			window.clearTimeout(scheduledHeroInitId);
+		}
+		scheduledHeroInitId = 0;
+	};
+
+	const runHeroInit = () => {
+		scheduledHeroInitId = 0;
+		initHeroSection();
+	};
+
+	const scheduleHeroInit = () => {
+		if (scheduledHeroInitId) return;
+		if ('requestIdleCallback' in window) {
+			scheduledHeroInitId = window.requestIdleCallback(runHeroInit, { timeout: 1200 });
+			return;
+		}
+		scheduledHeroInitId = window.setTimeout(runHeroInit, 180);
+	};
+
+	scheduleHeroInit();
+	document.addEventListener('astro:page-load', scheduleHeroInit);
+	document.addEventListener('astro:before-swap', () => {
+		clearScheduledHeroInit();
+		cleanupHeroNoButton();
+	});
 </script>
