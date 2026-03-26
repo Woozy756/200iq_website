@@ -88,10 +88,12 @@ const dictionary = getDictionary(lang);
 				this._observer = null;
 				this._rafId = 0;
 				this._delayId = 0;
+				this._isCoarsePointer = false;
 			}
 
 			connectedCallback() {
 				if (this.dataset.statsAnimated === 'true') return;
+				this._isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
 
 				this._uptimeEl = this.querySelector('[data-stat-kind="uptime"]');
 				this._latencyEl = this.querySelector('[data-stat-kind="latency"]');
@@ -149,7 +151,7 @@ const dictionary = getDictionary(lang);
 						},
 						{
 							threshold: 0,
-							rootMargin: '0px 0px -10% 0px',
+							rootMargin: this._isCoarsePointer ? '30% 0px -4% 0px' : '14% 0px -8% 0px',
 						},
 					);
 					this._observer.observe(this);
@@ -190,7 +192,7 @@ const dictionary = getDictionary(lang);
 				this._delayId = window.setTimeout(() => {
 					this._delayId = 0;
 					this._startAnimation();
-				}, 140);
+				}, this._isCoarsePointer ? 0 : 70);
 			}
 
 			_startAnimation() {

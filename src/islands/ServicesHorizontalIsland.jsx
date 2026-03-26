@@ -17,26 +17,7 @@ function easeInOutCubic(value) {
 	return 1 - ((-2 * value + 2) ** 3) / 2;
 }
 
-function createSteppedTimeline(timeline, count, holdRatio = 0.72) {
-	const bounded = clamp(timeline, 0, count);
-	const state = Math.floor(bounded);
-
-	if (state >= count) {
-		return count;
-	}
-
-	const phase = bounded - state;
-
-	if (phase <= holdRatio) {
-		return state;
-	}
-
-	const transition = clamp((phase - holdRatio) / (1 - holdRatio), 0, 1);
-	return state + easeInOutCubic(transition);
-}
-
-const MOBILE_TIMELINE_HOLD_RATIO = 0.62;
-const MOBILE_TIMELINE_DAMPING = 0.12;
+const MOBILE_TIMELINE_DAMPING = 0.26;
 const MOBILE_TIMELINE_TRAVEL_PADDING = 0.08;
 
 function createSeededRng(seed) {
@@ -120,6 +101,7 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 		cardWidth: 0,
 		glowSize: 0,
 		cardHeight: 0,
+		cardCount: 0,
 	});
 
 	useEffect(() => {
@@ -193,13 +175,14 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			if (!containerNode) return;
 
 			const viewportWidth = window.innerWidth || 1280;
+			const frameWidth = Math.max(1, containerNode.clientWidth || viewportWidth);
 			const count = Math.max(cards.length, cardNodes.length, 1);
-			const slots = viewportWidth >= 1200 ? 4 : viewportWidth >= 920 ? 3 : viewportWidth >= 640 ? 2 : 1;
-			const gap = viewportWidth >= 1200 ? 24 : viewportWidth >= 920 ? 20 : viewportWidth >= 640 ? 14 : 12;
-			const sidePadding = viewportWidth > 980 ? 40 : viewportWidth > 720 ? 32 : 20;
-			const maxCardWidth = viewportWidth >= 1200 ? 360 : viewportWidth >= 920 ? 330 : 420;
-			const minCardWidth = viewportWidth >= 920 ? 210 : viewportWidth >= 640 ? 220 : 240;
-			const widthFromSlots = (viewportWidth - sidePadding * 2 - gap * (slots - 1)) / slots;
+			const slots = frameWidth >= 1200 ? 4 : frameWidth >= 920 ? 3 : frameWidth >= 640 ? 2 : 1;
+			const gap = frameWidth >= 1200 ? 24 : frameWidth >= 920 ? 20 : frameWidth >= 640 ? 14 : 12;
+			const sidePadding = frameWidth > 980 ? 40 : frameWidth > 720 ? 32 : 20;
+			const maxCardWidth = frameWidth >= 1200 ? 360 : frameWidth >= 920 ? 330 : 420;
+			const minCardWidth = frameWidth >= 920 ? 210 : frameWidth >= 640 ? 220 : 240;
+			const widthFromSlots = (frameWidth - sidePadding * 2 - gap * (slots - 1)) / slots;
 			const cardWidth = clamp(widthFromSlots, minCardWidth, maxCardWidth);
 
 			const rect = containerNode.getBoundingClientRect();
@@ -216,26 +199,19 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			const revealVisibility = clamp((progress - 0.01) / 0.08, 0, 1);
 			containerNode.style.setProperty('--svcx-reveal-visibility', `${revealVisibility}`);
 
-			const offRight = viewportWidth + cardWidth + 90;
+			const offRight = frameWidth + cardWidth + 90;
 			const offLeft = -cardWidth - 120;
 			const travel = isTouchSingleColumn ? count + MOBILE_TIMELINE_TRAVEL_PADDING : count + 0.6;
 			const rawTimeline = clamp(progress * travel, 0, count);
 			let timeline = rawTimeline;
 
 			if (isTouchSingleColumn) {
-				const steppedTimeline = createSteppedTimeline(
-					rawTimeline,
-					count,
-					MOBILE_TIMELINE_HOLD_RATIO,
-				);
 				const mobileTimeline = mobileTimelineRef.current;
-				const shouldSnapToTarget = progress <= 0.001 || progress >= 0.995 || !mobileTimeline.primed;
-
-				if (shouldSnapToTarget) {
-					mobileTimeline.value = steppedTimeline;
+				if (!mobileTimeline.primed) {
+					mobileTimeline.value = rawTimeline;
 					mobileTimeline.primed = true;
 				} else {
-					mobileTimeline.value += (steppedTimeline - mobileTimeline.value) * MOBILE_TIMELINE_DAMPING;
+					mobileTimeline.value += (rawTimeline - mobileTimeline.value) * MOBILE_TIMELINE_DAMPING;
 				}
 
 				timeline = clamp(mobileTimeline.value, 0, count);
@@ -256,7 +232,7 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 				sidePadding,
 				cardWidth,
 				gap,
-				viewportWidth,
+				viewportWidth: frameWidth,
 			});
 			const to = getStatePositions({
 				arrivedCount: Math.min(state + 1, count),
@@ -267,14 +243,14 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 				sidePadding,
 				cardWidth,
 				gap,
-				viewportWidth,
+				viewportWidth: frameWidth,
 			});
 			const positions = from.map((x, index) => x + (to[index] - x) * alpha);
 			const glowSize = Math.round(cardWidth * 1.5);
 			const layout = layoutRef.current;
 			const cardWidthChanged = layout.cardWidth !== cardWidth;
 			const glowSizeChanged = layout.glowSize !== glowSize;
-			let tallestCardHeight = 0;
+			let tallestCardHeight = layout.cardHeight;
 
 			if (cardWidthChanged) {
 				layout.cardWidth = cardWidth;
@@ -285,10 +261,15 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 			}
 
 			const cardCount = Math.min(cardNodes.length, cards.length || cardNodes.length);
+			const needsHeightRecalc =
+				cardWidthChanged || layout.cardHeight <= 0 || layout.cardCount !== cardCount;
 
-			for (let index = 0; index < cardCount; index += 1) {
-				const cardNode = cardNodes[index];
-				if (cardNode) {
+			if (needsHeightRecalc) {
+				tallestCardHeight = 0;
+				for (let index = 0; index < cardCount; index += 1) {
+					const cardNode = cardNodes[index];
+					if (!cardNode) continue;
+
 					const widthValue = `${cardWidth}px`;
 					if (cardNode.style.width !== widthValue) {
 						cardNode.style.width = widthValue;
@@ -301,25 +282,31 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 					);
 					tallestCardHeight = Math.max(tallestCardHeight, naturalHeight);
 				}
-			}
 
-			const nextCardHeight = Math.ceil(tallestCardHeight);
-			if (layout.cardHeight !== nextCardHeight) {
-				layout.cardHeight = nextCardHeight;
+				layout.cardHeight = Math.ceil(tallestCardHeight);
+				layout.cardCount = cardCount;
 			}
 
 			for (let index = 0; index < cardCount; index += 1) {
 				const cardNode = cardNodes[index];
-				const x = positions[index] ?? viewportWidth + 200;
+				const rawX = positions[index] ?? frameWidth + 200;
+				const x = isTouchSingleColumn ? Math.round(rawX) : rawX;
 
 				if (cardNode) {
+					const widthValue = `${cardWidth}px`;
+					if (cardNode.style.width !== widthValue) {
+						cardNode.style.width = widthValue;
+					}
 					if (isTouchSingleColumn) {
 						const enterProgress = clamp(timeline - index, 0, 1);
 						cardNode.style.opacity = `${easeInOutCubic(enterProgress)}`;
 					} else if (cardNode.style.opacity) {
 						cardNode.style.opacity = '';
 					}
-					cardNode.style.height = `${layout.cardHeight}px`;
+					const heightValue = `${layout.cardHeight}px`;
+					if (cardNode.style.height !== heightValue) {
+						cardNode.style.height = heightValue;
+					}
 					cardNode.style.transform = `translate3d(${x}px, -50%, 0)`;
 				}
 			}
@@ -328,7 +315,8 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 
 			for (let index = 0; index < glowCount; index += 1) {
 				const glowNode = glowNodes[index];
-				const x = positions[index] ?? viewportWidth + 200;
+				const rawX = positions[index] ?? frameWidth + 200;
+				const x = isTouchSingleColumn ? Math.round(rawX) : rawX;
 
 				if (glowNode) {
 					const enter = clamp(timeline - index, 0, 1);
