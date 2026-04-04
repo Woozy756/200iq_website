@@ -1,0 +1,175 @@
+---
+import { getDictionary, normalizeLang } from '../i18n/utils';
+
+interface Props {
+	lang: string;
+}
+
+const lang = normalizeLang(Astro.props.lang);
+const dictionary = getDictionary(lang);
+const ringLabels = dictionary.showcase.rings;
+---
+
+<section id="showcase" class="laptop-shell">
+	<div class="laptop-bg" aria-hidden="true"></div>
+	<div class="laptop-overlay" aria-hidden="true"></div>
+
+	<div class="laptop-rings-wrap">
+		<div class="laptop-rings" id="laptop-rings">
+			<article class="l-ring">
+				<svg class="l-ring-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<path d="M6 37 L6 24 L15 31 L24 8 L33 31 L42 24 L42 37" />
+					<rect x="6" y="37" width="36" height="5" rx="2" />
+					<circle cx="15" cy="39.5" r="1.6" fill="currentColor" stroke="none" />
+					<circle cx="24" cy="39.5" r="1.6" fill="currentColor" stroke="none" />
+					<circle cx="33" cy="39.5" r="1.6" fill="currentColor" stroke="none" />
+					<path d="M20.5 8 L24 3.5 L27.5 8 L24 12.5 Z" fill="currentColor" stroke="none" />
+					<circle cx="6" cy="24" r="2" fill="currentColor" stroke="none" />
+					<circle cx="42" cy="24" r="2" fill="currentColor" stroke="none" />
+				</svg>
+				<span class="l-ring-label">{ringLabels[0]}</span>
+			</article>
+
+			<article class="l-ring">
+				<svg class="l-ring-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<circle cx="20" cy="20" r="14" />
+					<line x1="30" y1="30" x2="43" y2="43" stroke-width="2" />
+					<line x1="11" y1="28" x2="11" y2="23" />
+					<line x1="15" y1="28" x2="15" y2="17" />
+					<line x1="19" y1="28" x2="19" y2="20" />
+					<line x1="23" y1="28" x2="23" y2="13" />
+					<line x1="10" y1="28" x2="25" y2="28" />
+					<path d="M11 23 L15 17 L19 20 L23 13" />
+					<polyline points="21,11 23,13 25,11" />
+				</svg>
+				<span class="l-ring-label">{ringLabels[1]}</span>
+			</article>
+
+			<article class="l-ring">
+				<svg class="l-ring-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<circle cx="20" cy="14" r="7" />
+					<path d="M4 44 C4 32 12 27 20 27 C28 27 36 32 36 44" />
+					<line x1="30" y1="9" x2="45" y2="9" />
+					<circle cx="37" cy="9" r="2.8" fill="currentColor" stroke="none" />
+					<line x1="30" y1="18" x2="45" y2="18" />
+					<circle cx="41" cy="18" r="2.8" fill="currentColor" stroke="none" />
+					<line x1="30" y1="27" x2="45" y2="27" />
+					<circle cx="33" cy="27" r="2.8" fill="currentColor" stroke="none" />
+					<line x1="30" y1="7" x2="30" y2="11" />
+					<line x1="45" y1="7" x2="45" y2="11" />
+					<line x1="30" y1="16" x2="30" y2="20" />
+					<line x1="45" y1="16" x2="45" y2="20" />
+					<line x1="30" y1="25" x2="30" y2="29" />
+					<line x1="45" y1="25" x2="45" y2="29" />
+				</svg>
+				<span class="l-ring-label">{ringLabels[2]}</span>
+			</article>
+		</div>
+	</div>
+</section>
+
+<script is:inline>
+	(function () {
+		function cleanupShowcaseAnimation() {
+			if (window.__showcaseAnimationCleanup) {
+				window.__showcaseAnimationCleanup();
+				window.__showcaseAnimationCleanup = null;
+			}
+		}
+
+		function initShowcaseAnimation() {
+			cleanupShowcaseAnimation();
+
+			var section = document.getElementById('showcase');
+			var ringsEl = document.getElementById('laptop-rings');
+			if (!(section instanceof HTMLElement) || !(ringsEl instanceof HTMLElement)) return;
+
+			var ringEls = Array.from(ringsEl.children).slice(0, 3);
+			if (ringEls.length < 3) return;
+
+			var ring1 = ringEls[0];
+			var ring2 = ringEls[1];
+			var ring3 = ringEls[2];
+			var raf = 0;
+
+			function eio(t) {
+				return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+			}
+
+			function update() {
+				raf = 0;
+				var rect = section.getBoundingClientRect();
+				var vh = window.innerHeight;
+				var fadeP = Math.min(1, Math.max(0, (vh - rect.top) / (vh * 0.5)));
+				var raw = 1 - (rect.top + rect.height * 0.15) / (vh * 0.9);
+				var p = eio(Math.min(1, Math.max(0, raw)));
+				var sz = ring1.offsetWidth;
+
+				section.style.opacity = String(fadeP);
+				ring1.style.transform = 'translateX(' + (sz * 0.4 * p) + 'px) translateY(' + (sz * 0.58 * p) + 'px)';
+				ring2.style.transform = 'translateY(' + (sz * -0.08 * p) + 'px)';
+				ring3.style.transform = 'translateX(' + (-sz * 0.4 * p) + 'px) translateY(' + (sz * 0.58 * p) + 'px)';
+				ringsEl.style.transform = window.innerWidth <= 700 ? 'scale(' + (1 + 0.55 * p) + ')' : '';
+
+				var cr = Math.round(255 + (244 - 255) * p);
+				var cg = Math.round(255 + (180 - 255) * p);
+				var cb = Math.round(255 + (77 - 255) * p);
+				var borderA = 0.55 + (0.85 - 0.55) * p;
+				var color = 'rgb(' + cr + ',' + cg + ',' + cb + ')';
+				var borderColor = 'rgba(' + cr + ',' + cg + ',' + cb + ',' + borderA + ')';
+				var boxShadow = p > 0.02
+					? '0 0 ' + Math.round(20 * p) + 'px rgba(244,180,77,' + (0.4 * p).toFixed(2) + '), 0 0 ' + Math.round(50 * p) + 'px rgba(244,180,77,' + (0.15 * p).toFixed(2) + ')'
+					: 'none';
+
+				[ring1, ring2, ring3].forEach(function (ring) {
+					ring.style.color = color;
+					ring.style.borderColor = borderColor;
+					ring.style.boxShadow = boxShadow;
+				});
+			}
+
+			function queueUpdate() {
+				if (!raf) {
+					raf = requestAnimationFrame(update);
+				}
+			}
+
+			window.addEventListener('scroll', queueUpdate, { passive: true });
+			window.addEventListener('resize', queueUpdate);
+			window.addEventListener('pageshow', queueUpdate);
+			update();
+
+			window.__showcaseAnimationCleanup = function () {
+				window.removeEventListener('scroll', queueUpdate);
+				window.removeEventListener('resize', queueUpdate);
+				window.removeEventListener('pageshow', queueUpdate);
+				if (raf) {
+					cancelAnimationFrame(raf);
+					raf = 0;
+				}
+				section.style.opacity = '';
+				ringsEl.style.transform = '';
+				[ring1, ring2, ring3].forEach(function (ring) {
+					ring.style.transform = '';
+					ring.style.color = '';
+					ring.style.borderColor = '';
+					ring.style.boxShadow = '';
+				});
+			};
+		}
+
+		if (window.__showcaseAnimationPageLoadHandler) {
+			document.removeEventListener('astro:page-load', window.__showcaseAnimationPageLoadHandler);
+		}
+		if (window.__showcaseAnimationBeforeSwapHandler) {
+			document.removeEventListener('astro:before-swap', window.__showcaseAnimationBeforeSwapHandler);
+		}
+
+		window.__showcaseAnimationPageLoadHandler = initShowcaseAnimation;
+		window.__showcaseAnimationBeforeSwapHandler = cleanupShowcaseAnimation;
+
+		initShowcaseAnimation();
+		document.addEventListener('astro:page-load', window.__showcaseAnimationPageLoadHandler);
+		document.addEventListener('astro:before-swap', window.__showcaseAnimationBeforeSwapHandler);
+	})();
+</script>

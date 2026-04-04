@@ -49,10 +49,18 @@ export const ui = {
       readyPrompt: "Ready to get started?",
       primaryCta: "Yes, lets go",
       secondaryCta: "No",
+      trustAriaLabel: "Trust indicators",
+      trust: {
+        averageRatingLabel: "Average client rating",
+        deliveryTimeLabel: "Delivery time",
+        deliveryTimeSuffix: " days",
+        customBuildLabel: "Custom built",
+      },
     },
     process: {
       eyebrow: "How We Build",
-      title: "Steps to launch",
+      titleStart: "Steps",
+      titleHighlight: "to launch",
       description:
         "A direct four-step workflow from first call to production launch.",
       steps: [
@@ -85,24 +93,32 @@ export const ui = {
     },
     services: {
       eyebrow: "Core Services",
-      title: "High-Performance Delivery",
+      titleStart: "High-Performance",
+      titleHighlight: "Delivery",
       cards: [
         {
-          title: "Elite Level Design",
+          title: "<span class=\"accent\">Elite</span> Level Design",
           desc: "Bespoke visual experiences tailored for the most demanding brands. We don't just build websites; we craft digital masterpieces.",
         },
         {
-          title: "SEO Optimization",
+          title: "<span class=\"accent\">SEO</span> Optimization",
           desc: "Dominating search rankings with precision-engineered structure and high-performance architecture that Google loves.",
         },
         {
-          title: "Payment Integration",
+          title: "<span class=\"accent\">Payment</span> Integration",
           desc: "Seamless, secure, and lightning-fast transaction systems integrated directly into your digital ecosystem.",
         },
         {
-          title: "Individual Requests",
+          title: "<span class=\"accent\">Individual</span> Requests",
           desc: "Custom-built features and unique functionalities designed specifically for your business's unique digital needs.",
         },
+      ],
+    },
+    showcase: {
+      rings: [
+        "Premium class design",
+        "SEO optimized",
+        "Custom solutions",
       ],
     },
     tech: {
@@ -233,10 +249,18 @@ export const ui = {
       readyPrompt: "Vai esat gatavi sākt?",
       primaryCta: "Jā, sākam",
       secondaryCta: "Nē",
+      trustAriaLabel: "Uzticības rādītāji",
+      trust: {
+        averageRatingLabel: "Vidējais klientu vērtējums",
+        deliveryTimeLabel: "Piegādes laiks",
+        deliveryTimeSuffix: " dienās",
+        customBuildLabel: "Individuāls pielāgojums",
+      },
     },
     process: {
       eyebrow: "Kā mēs strādājam",
-      title: "Soļi līdz palaišanai",
+      titleStart: "Soļi",
+      titleHighlight: "līdz palaišanai",
       description:
         "Tieša četru soļu pieeja no pirmās sarunas līdz projekta palaišanai.",
       steps: [
@@ -273,24 +297,32 @@ export const ui = {
     },
     services: {
       eyebrow: "Pamatpakalpojumi",
-      title: "Augstas veiktspējas izpilde",
+      titleStart: "veiktspējas nodrošināšana",
+      titleHighlight: "Maksimālas",
       cards: [
         {
-          title: "Elites līmeņa dizains",
+          title: "<span class=\"accent\">Elites</span> līmeņa dizains",
           desc: "Individuāli veidota vizuālā pieredze zīmoliem ar visaugstākajām prasībām. Mēs neveidojam vienkārši mājaslapas, mēs radām digitālus meistardarbus.",
         },
         {
-          title: "SEO optimizācija",
+          title: "<span class=\"accent\">SEO</span> optimizācija",
           desc: "Redzamība meklēšanas rezultātos ar precīzi izstrādātu struktūru un augstas veiktspējas arhitektūru, ko novērtē arī Google.",
         },
         {
-          title: "Maksājumu integrācija",
+          title: "<span class=\"accent\">Maksājumu</span> integrācija",
           desc: "Nevainojamas, drošas un ātras transakciju sistēmas, kas ir integrētas jūsu digitālajā ekosistēmā.",
         },
         {
-          title: "Individuāli risinājumi",
+          title: "<span class=\"accent\">Individuāli</span> risinājumi",
           desc: "Pēc pasūtījuma veidotas funkcijas un risinājumi, kas atbilst jūsu biznesa unikālajām digitālajām vajadzībām.",
         },
+      ],
+    },
+    showcase: {
+      rings: [
+        "Premium klases dizains",
+        "SEO optimizēts",
+        "Individuāli risinājumi",
       ],
     },
     tech: {
@@ -422,10 +454,18 @@ export const ui = {
       readyPrompt: "Готовы начать?",
       primaryCta: "Да, поехали",
       secondaryCta: "Нет",
+      trustAriaLabel: "Показатели доверия",
+      trust: {
+        averageRatingLabel: "Средняя оценка клиентов",
+        deliveryTimeLabel: "Срок реализации",
+        deliveryTimeSuffix: " дней",
+        customBuildLabel: "Индивидуальная разработка",
+      },
     },
     process: {
       eyebrow: "Как мы работаем",
-      title: "Этапы запуска",
+      titleStart: "Этапы",
+      titleHighlight: "запуска",
       description:
         "Прямой четырехэтапный процесс — от первого звонка до запуска в production.",
       steps: [
@@ -462,24 +502,32 @@ export const ui = {
     },
     services: {
       eyebrow: "Ключевые услуги",
-      title: "Высокопроизводительная реализация",
+      titleStart: "Высокопроизводительная",
+      titleHighlight: "реализация",
       cards: [
         {
-          title: "Дизайн элитного уровня",
+          title: "Дизайн <span class=\"accent\">элитного</span> уровня",
           desc: "Индивидуальные визуальные решения для самых требовательных брендов. Мы не просто создаем сайты — мы разрабатываем цифровые шедевры.",
         },
         {
-          title: "SEO-оптимизация",
+          title: "<span class=\"accent\">SEO</span>-оптимизация",
           desc: "Доминирование в поисковой выдаче за счет точно выстроенной структуры и высокопроизводительной архитектуры, которую ценит Google.",
         },
         {
-          title: "Интеграция платежей",
+          title: "Интеграция <span class=\"accent\">платежей</span>",
           desc: "Бесшовные, безопасные и молниеносные транзакционные системы, интегрированные напрямую в вашу цифровую экосистему.",
         },
         {
-          title: "Индивидуальные запросы",
+          title: "<span class=\"accent\">Индивидуальные</span> запросы",
           desc: "Кастомные функции и уникальные возможности, разработанные специально под цифровые задачи вашего бизнеса.",
         },
+      ],
+    },
+    showcase: {
+      rings: [
+        "Премиальный дизайн",
+        "SEO-оптимизация",
+        "Индивидуальные решения",
       ],
     },
     tech: {
@@ -610,10 +658,18 @@ export const ui = {
       readyPrompt: "Kas oled valmis alustama?",
       primaryCta: "Jah, lähme",
       secondaryCta: "Ei",
+      trustAriaLabel: "Usaldusnäitajad",
+      trust: {
+        averageRatingLabel: "Keskmine kliendihinnang",
+        deliveryTimeLabel: "Tarneaeg",
+        deliveryTimeSuffix: " päevaga",
+        customBuildLabel: "Rätseplahendus",
+      },
     },
     process: {
       eyebrow: "Kuidas me loome",
-      title: "Sammud lansseerimiseni",
+      titleStart: "Sammud",
+      titleHighlight: "lansseerimiseni",
       description:
         "Selge neljaastmeline töövoog esimesest kõnest kuni tootmiskeskkonda lansseerimiseni.",
       steps: [
@@ -646,24 +702,32 @@ export const ui = {
     },
     services: {
       eyebrow: "Põhiteenused",
-      title: "Suure jõudlusega teostus",
+      titleStart: "Suure jõudlusega",
+      titleHighlight: "teostus",
       cards: [
         {
-          title: "Eliittasemel disain",
+          title: "<span class=\"accent\">Eliittasemel</span> disain",
           desc: "Rätseplahendusena loodud visuaalsed kogemused kõige nõudlikumatele brändidele. Me ei loo lihtsalt veebisaite; me kujundame digitaalseid meistriteoseid.",
         },
         {
-          title: "SEO optimeerimine",
+          title: "<span class=\"accent\">SEO</span> optimeerimine",
           desc: "Valitse otsingutulemusi täppisinseneeria abil loodud struktuuri ja suure jõudlusega arhitektuuriga, mida Google hindab.",
         },
         {
-          title: "Makseintegratsioon",
+          title: "<span class=\"accent\">Makse</span>integratsioon",
           desc: "Sujuvad, turvalised ja välkkiired tehingusüsteemid, mis on integreeritud otse sinu digitaalsesse ökosüsteemi.",
         },
         {
-          title: "Individuaalsed lahendused",
+          title: "<span class=\"accent\">Individuaalsed</span> lahendused",
           desc: "Rätseplahendusena loodud funktsioonid ja unikaalsed võimalused, mis on kavandatud just sinu ettevõtte digivajaduste jaoks.",
         },
+      ],
+    },
+    showcase: {
+      rings: [
+        "Premium disain",
+        "SEO optimeeritud",
+        "Individuaalsed lahendused",
       ],
     },
     tech: {

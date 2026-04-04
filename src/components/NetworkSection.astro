@@ -9,7 +9,7 @@ const lang = normalizeLang(Astro.props.lang);
 const t = useTranslations(lang);
 ---
 
-<section id="network" class="section network-band">
+<section id="network" class="section network-band network-slide" data-network-locale={lang}>
 	<div class="container">
 		<h2 class="section-title">{t('network.titleStart')} <br /> {t('network.titleEnd')}</h2>
 		<p class="muted">{t('network.body')}</p>
@@ -18,3 +18,248 @@ const t = useTranslations(lang);
 		</div>
 	</div>
 </section>
+
+<script is:inline>
+	(function () {
+		function cleanupNetworkAnimation() {
+			if (window.__networkAnimationCleanup) {
+				window.__networkAnimationCleanup();
+				window.__networkAnimationCleanup = null;
+			}
+		}
+
+		function initNetworkAnimation() {
+			cleanupNetworkAnimation();
+
+			var currentLang = document.documentElement.lang || 'lv';
+			var section = document.querySelector('.network-slide[data-network-locale="' + currentLang + '"]');
+			if (!(section instanceof HTMLElement)) return;
+			var wrapper = section.closest('.closing-stack');
+			if (!(wrapper instanceof HTMLElement)) return;
+
+			var title = section.querySelector('.section-title');
+			var body = section.querySelector('.muted');
+			var cta = section.querySelector('.network-band__cta');
+			if (!(title instanceof HTMLElement) || !(body instanceof HTMLElement) || !(cta instanceof HTMLElement)) return;
+			var raf = 0;
+			var lastFrame = 0;
+			var renderedProgress = -1;
+			var destroyed = false;
+			var sectionTop = 0;
+			var wrapperOffset = 0;
+			var titleOffset = 0;
+			var bodyOffset = 0;
+			var ctaOffset = 0;
+			var settleFrame = 0;
+			var settleTimeout = 0;
+			var reducedMotionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+
+			function eio(t) {
+				return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+			}
+
+			function clamp(value, min, max) {
+				return Math.min(max, Math.max(min, value));
+			}
+
+			function getScrollY() {
+				return window.scrollY || window.pageYOffset || 0;
+			}
+
+			function getDocumentTop(node) {
+				var top = 0;
+				var current = node;
+				while (current instanceof HTMLElement) {
+					top += current.offsetTop;
+					current = current.offsetParent;
+				}
+				return top;
+			}
+
+			function refreshMeasurements() {
+				if (destroyed) return;
+				var vh = window.innerHeight || 0;
+				var vw = window.innerWidth || 0;
+				var isDesktop = vw >= 981;
+				var isTablet = vw >= 721 && vw < 981;
+				sectionTop = getDocumentTop(section);
+				wrapperOffset = Math.round(
+					isDesktop ? Math.min(460, vh * 0.42) : isTablet ? Math.min(320, vh * 0.32) : Math.min(220, vh * 0.24)
+				);
+				titleOffset = Math.round(isDesktop ? Math.min(72, vh * 0.08) : Math.min(54, vh * 0.06));
+				bodyOffset = Math.round(isDesktop ? Math.min(52, vh * 0.06) : Math.min(38, vh * 0.045));
+				ctaOffset = Math.round(isDesktop ? Math.min(34, vh * 0.045) : Math.min(24, vh * 0.03));
+			}
+
+			function computeTargetProgress() {
+				if (destroyed) return 1;
+				var vh = window.innerHeight || 0;
+				var vw = window.innerWidth || 0;
+				var sectionViewportTop = sectionTop - getScrollY();
+				var start = vw >= 981 ? vh * 0.95 : vh * 0.92;
+				var end = vw >= 981 ? vh * 0.16 : vh * 0.22;
+				var raw = (start - sectionViewportTop) / (start - end);
+				return eio(clamp(raw, 0, 1));
+			}
+
+			function apply(progress) {
+				if (destroyed) return;
+				var inverse = 1 - progress;
+				wrapper.style.transform = 'translate3d(0,' + Math.round(wrapperOffset * inverse) + 'px,0)';
+				title.style.transform = 'translate3d(0,' + Math.round(titleOffset * inverse) + 'px,0)';
+				body.style.transform = 'translate3d(0,' + Math.round(bodyOffset * inverse) + 'px,0)';
+				cta.style.transform = 'translate3d(0,' + Math.round(ctaOffset * inverse) + 'px,0)';
+			}
+
+			function queueUpdate() {
+				if (destroyed) return;
+				if (!raf) {
+					raf = requestAnimationFrame(update);
+				}
+			}
+
+			function update(now) {
+				if (destroyed) return;
+				raf = 0;
+				var targetProgress = computeTargetProgress();
+
+				if (renderedProgress < 0) {
+					renderedProgress = targetProgress;
+					apply(renderedProgress);
+					lastFrame = now || 0;
+					return;
+				}
+
+				var delta = lastFrame ? Math.min(64, Math.max(16, now - lastFrame)) : 16;
+				lastFrame = now;
+				var alpha = 1 - Math.exp(-((window.innerWidth || 0) >= 981 ? 0.014 : 0.018) * delta);
+				renderedProgress += (targetProgress - renderedProgress) * alpha;
+
+				if (Math.abs(targetProgress - renderedProgress) < 0.0015) {
+					renderedProgress = targetProgress;
+				}
+
+				apply(renderedProgress);
+
+				if (renderedProgress !== targetProgress) {
+					raf = requestAnimationFrame(update);
+				}
+			}
+
+			function refreshAndQueue() {
+				if (destroyed) return;
+				refreshMeasurements();
+				queueUpdate();
+			}
+
+			function scheduleSettledRefresh() {
+				if (destroyed) return;
+				if (settleFrame) {
+					cancelAnimationFrame(settleFrame);
+					settleFrame = 0;
+				}
+				if (settleTimeout) {
+					clearTimeout(settleTimeout);
+					settleTimeout = 0;
+				}
+
+				settleFrame = requestAnimationFrame(function () {
+					settleFrame = requestAnimationFrame(function () {
+						settleFrame = 0;
+						refreshAndQueue();
+					});
+				});
+
+				settleTimeout = window.setTimeout(function () {
+					settleTimeout = 0;
+					refreshAndQueue();
+				}, 140);
+			}
+
+			function resetTransforms() {
+				wrapper.style.transform = '';
+				title.style.transform = '';
+				body.style.transform = '';
+				cta.style.transform = '';
+			}
+
+			function handleLoad() {
+				if (destroyed) return;
+				refreshAndQueue();
+			}
+
+			destroyed = false;
+			refreshMeasurements();
+			renderedProgress = computeTargetProgress();
+			apply(renderedProgress);
+			lastFrame = 0;
+
+			if (reducedMotionQuery && reducedMotionQuery.matches) {
+				resetTransforms();
+				return;
+			}
+
+			window.addEventListener('scroll', queueUpdate, { passive: true });
+			window.addEventListener('resize', refreshAndQueue);
+			window.addEventListener('orientationchange', refreshAndQueue);
+			window.addEventListener('pageshow', refreshAndQueue);
+			window.addEventListener('load', handleLoad, { once: true });
+
+			if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+				document.fonts.ready.then(handleLoad).catch(function () {});
+			}
+			scheduleSettledRefresh();
+
+			window.__networkAnimationCleanup = function () {
+				destroyed = true;
+				window.removeEventListener('scroll', queueUpdate);
+				window.removeEventListener('resize', refreshAndQueue);
+				window.removeEventListener('orientationchange', refreshAndQueue);
+				window.removeEventListener('pageshow', refreshAndQueue);
+				window.removeEventListener('load', handleLoad);
+				if (raf) {
+					cancelAnimationFrame(raf);
+					raf = 0;
+				}
+				if (settleFrame) {
+					cancelAnimationFrame(settleFrame);
+					settleFrame = 0;
+				}
+				if (settleTimeout) {
+					clearTimeout(settleTimeout);
+					settleTimeout = 0;
+				}
+				renderedProgress = -1;
+				lastFrame = 0;
+				resetTransforms();
+			};
+		}
+
+		if (window.__networkAnimationPageLoadHandler) {
+			document.removeEventListener('astro:page-load', window.__networkAnimationPageLoadHandler);
+		}
+		if (window.__networkAnimationAfterSwapHandler) {
+			document.removeEventListener('astro:after-swap', window.__networkAnimationAfterSwapHandler);
+		}
+		if (window.__networkAnimationBeforeSwapHandler) {
+			document.removeEventListener('astro:before-swap', window.__networkAnimationBeforeSwapHandler);
+		}
+
+		window.__networkAnimationPageLoadHandler = initNetworkAnimation;
+		window.__networkAnimationAfterSwapHandler = initNetworkAnimation;
+		window.__networkAnimationBeforeSwapHandler = cleanupNetworkAnimation;
+		if (window.__networkAnimationDomReadyHandler) {
+			document.removeEventListener('DOMContentLoaded', window.__networkAnimationDomReadyHandler);
+		}
+		window.__networkAnimationDomReadyHandler = initNetworkAnimation;
+
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', window.__networkAnimationDomReadyHandler, { once: true });
+		} else {
+			initNetworkAnimation();
+		}
+		document.addEventListener('astro:page-load', window.__networkAnimationPageLoadHandler);
+		document.addEventListener('astro:after-swap', window.__networkAnimationAfterSwapHandler);
+		document.addEventListener('astro:before-swap', window.__networkAnimationBeforeSwapHandler);
+	})();
+</script>

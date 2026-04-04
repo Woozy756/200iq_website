@@ -1,5 +1,4 @@
 ---
-import ServicesHorizontalIsland from '../islands/ServicesHorizontalIsland.jsx';
 import { getDictionary, normalizeLang } from '../i18n/utils';
 
 interface Props {
@@ -8,9 +7,131 @@ interface Props {
 
 const lang = normalizeLang(Astro.props.lang);
 const dictionary = getDictionary(lang);
+const cards = dictionary.services.cards;
 ---
 
-<div class="svcx-shell">
-	<ServicesHorizontalIsland client:visible cards={dictionary.services.cards} />
-	<div class="section-divider is-bottom" aria-hidden="true"></div>
-</div>
+<section id="services" class="svcx-shell" data-services-locale={lang}>
+	<div class="svcx-grid">
+		{cards.map((card, i) => (
+			<div class="svcx-col">
+				<div class="svcx-img-wrap">
+					<img
+						src={`/card${i + 1}.webp`}
+						alt={card.title.replace(/<[^>]*>/g, '')}
+						loading={i === 0 ? 'eager' : 'lazy'}
+						decoding="async"
+					/>
+				</div>
+				<h3 class="svcx-col-title" set:html={card.title} />
+				<p class="svcx-col-desc">{card.desc}</p>
+			</div>
+		))}
+	</div>
+</section>
+
+<script is:inline>
+	(function () {
+		function cleanupServicesAnimation() {
+			if (window.__servicesAnimationCleanup) {
+				window.__servicesAnimationCleanup();
+				window.__servicesAnimationCleanup = null;
+			}
+		}
+
+		function initServicesAnimation() {
+			cleanupServicesAnimation();
+
+			var section = document.getElementById('services');
+			if (!(section instanceof HTMLElement)) return;
+
+			var prevSection = document.getElementById('showcase');
+			var colEls = Array.from(section.querySelectorAll('.svcx-col'));
+			if (colEls.length === 0) return;
+
+			var startOffsets = [0, 60, 120, 45];
+			var finalOffset = 25;
+			var raf = 0;
+
+			function eio(t) {
+				return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+			}
+
+			function update() {
+				raf = 0;
+				var vh = window.innerHeight;
+				var rect = section.getBoundingClientRect();
+				var flyWindow = vh * 0.8;
+				var enterRaw = (flyWindow - rect.top) / flyWindow;
+				var enterP = eio(Math.min(1, Math.max(0, enterRaw)));
+
+				if (prevSection instanceof HTMLElement) {
+					prevSection.style.transform = 'translateY(' + (-enterP * 100) + '%)';
+				}
+
+				var raw = 1 - (rect.top + rect.height * 0.08) / (vh * 0.82);
+				var p = eio(Math.min(1, Math.max(0, raw)));
+
+				colEls.forEach(function (col, index) {
+					var from = startOffsets[index] ?? startOffsets[startOffsets.length - 1];
+					var y = from + (finalOffset - from) * p;
+					col.style.transform = 'translateY(' + y + 'px)';
+				});
+			}
+
+			function queueUpdate() {
+				if (!raf) {
+					raf = requestAnimationFrame(update);
+				}
+			}
+
+			function handleResize() {
+				queueUpdate();
+			}
+
+			function handleLoad() {
+				queueUpdate();
+			}
+
+			window.addEventListener('scroll', queueUpdate, { passive: true });
+			window.addEventListener('resize', handleResize);
+			window.addEventListener('pageshow', handleResize);
+			window.addEventListener('load', handleLoad, { once: true });
+
+			if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+				document.fonts.ready.then(handleLoad).catch(function () {});
+			}
+			update();
+
+			window.__servicesAnimationCleanup = function () {
+				window.removeEventListener('scroll', queueUpdate);
+				window.removeEventListener('resize', handleResize);
+				window.removeEventListener('pageshow', handleResize);
+				window.removeEventListener('load', handleLoad);
+				if (raf) {
+					cancelAnimationFrame(raf);
+					raf = 0;
+				}
+				if (prevSection instanceof HTMLElement) {
+					prevSection.style.transform = '';
+				}
+				colEls.forEach(function (col) {
+					col.style.transform = '';
+				});
+			};
+		}
+
+		if (window.__servicesAnimationPageLoadHandler) {
+			document.removeEventListener('astro:page-load', window.__servicesAnimationPageLoadHandler);
+		}
+		if (window.__servicesAnimationBeforeSwapHandler) {
+			document.removeEventListener('astro:before-swap', window.__servicesAnimationBeforeSwapHandler);
+		}
+
+		window.__servicesAnimationPageLoadHandler = initServicesAnimation;
+		window.__servicesAnimationBeforeSwapHandler = cleanupServicesAnimation;
+
+		initServicesAnimation();
+		document.addEventListener('astro:page-load', window.__servicesAnimationPageLoadHandler);
+		document.addEventListener('astro:before-swap', window.__servicesAnimationBeforeSwapHandler);
+	})();
+</script>

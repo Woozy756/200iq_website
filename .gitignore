@@ -19,6 +19,16 @@ pnpm-debug.log*
 
 # macOS-specific files
 .DS_Store
+._*
 
 # jetbrains setting folder
 .idea/
+
+# local tooling / snapshots
+.claude/
+www.200iq.eu1/
+matereals/
+dev-start.log
+dev-page.html
+hero-lead-removed.txt
+palette.png

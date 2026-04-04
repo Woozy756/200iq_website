@@ -10,14 +10,16 @@ const t = useTranslations(lang);
 const facebookHref = t('footer.facebookHref');
 ---
 
-<footer id="join" class="site-footer">
+<footer id="join" class="site-footer" data-footer-locale={lang}>
 	<div class="container">
 		<div class="footer-grid">
-			<div>
-				<h2 class="footer-title">
-					{t('footer.titleStart')} <br /> <span class="accent">{t('footer.titleHighlight')}</span>
-				</h2>
-				<a class="btn btn-primary" href={getLocalizedPath(lang, '/contact')}>{t('footer.cta')}</a>
+			<div class="footer-cta-col">
+				<div class="footer-cta-row">
+					<h2 class="footer-title">
+						{t('footer.titleStart')} <span class="accent">{t('footer.titleHighlight')}</span>
+					</h2>
+					<a class="btn btn-primary" href={getLocalizedPath(lang, '/contact')}>{t('footer.cta')}</a>
+				</div>
 			</div>
 			<div class="footer-columns">
 				<div class="footer-social-column">

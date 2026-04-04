@@ -8,12 +8,6 @@ import siteFavicon from '../assets/favicon.svg';
 import fontStylesheetHref from '../styles/fonts.css?url';
 import globalStylesheetHref from '../styles/global.css?url';
 import homeCriticalCss from '../styles/critical-home.css?raw';
-import interLatin400Woff2 from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
-import interCyrillic400Woff2 from '@fontsource/inter/files/inter-cyrillic-400-normal.woff2?url';
-import oswaldLatin700Woff2 from '@fontsource/oswald/files/oswald-latin-700-normal.woff2?url';
-import oswaldCyrillic700Woff2 from '@fontsource/oswald/files/oswald-cyrillic-700-normal.woff2?url';
-import spaceGroteskLatin600Woff2 from '@fontsource/space-grotesk/files/space-grotesk-latin-600-normal.woff2?url';
-import spaceGroteskLatin700Woff2 from '@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2?url';
 
 interface Props {
 	lang: string;
@@ -92,14 +86,13 @@ const ogLocaleMap: Record<Lang, string> = {
 };
 const activeOgLocale = ogLocaleMap[activeLang];
 const alternateOgLocales = locales.filter((locale) => locale !== activeLang).map((locale) => ogLocaleMap[locale]);
-const isCyrillicLocale = activeLang === 'ru';
-const interCriticalWoff2 = isCyrillicLocale ? interCyrillic400Woff2 : interLatin400Woff2;
-const oswaldCriticalWoff2 = isCyrillicLocale ? oswaldCyrillic700Woff2 : oswaldLatin700Woff2;
 const flagIconStylesheetHref = 'https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css';
 const nonHomeCriticalCss = `
 	:root {
 		color-scheme: only light;
-		--container: 1120px;
+		--container: 1200px;
+		--gutter-tablet: clamp(1.45rem, 4.8vw, 2.1rem);
+		--gutter-mobile: clamp(1.15rem, 4.6vw, 1.5rem);
 	}
 
 	*,
@@ -116,7 +109,7 @@ const nonHomeCriticalCss = `
 	}
 
 	body {
-		background: #120603;
+		background: #000;
 		color: #f8ecdc;
 		font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 		line-height: 1.5;
@@ -136,6 +129,30 @@ const nonHomeCriticalCss = `
 	.container {
 		width: min(var(--container), 92vw);
 		margin-inline: auto;
+	}
+
+	@media (max-width: 1024px) {
+		.container {
+			width: min(var(--container), calc(100% - (var(--gutter-tablet) * 2)));
+		}
+	}
+
+	@media (max-width: 768px) {
+		.container {
+			width: min(var(--container), calc(100% - (var(--gutter-mobile) * 2)));
+		}
+	}
+
+	@media (min-width: 1400px) {
+		:root {
+			--container: 1440px;
+		}
+	}
+
+	@media (min-width: 2400px) {
+		:root {
+			--container: 1600px;
+		}
 	}
 `;
 
@@ -192,10 +209,6 @@ const getLocalizedPath = (locale: Lang) => buildLocalizedPath(locale, localizedC
 				onload="this.onload=null;this.rel='stylesheet'"
 			/>
 			<noscript><link rel="stylesheet" href={flagIconStylesheetHref} /></noscript>
-			<link rel="preload" as="font" type="font/woff2" href={interCriticalWoff2} crossorigin />
-			<link rel="preload" as="font" type="font/woff2" href={oswaldCriticalWoff2} crossorigin />
-			<link rel="preload" as="font" type="font/woff2" href={spaceGroteskLatin600Woff2} crossorigin />
-			<link rel="preload" as="font" type="font/woff2" href={spaceGroteskLatin700Woff2} crossorigin />
 			<link rel="stylesheet" href={fontStylesheetHref} />
 			{
 				isHomePage ? (

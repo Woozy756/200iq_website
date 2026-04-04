@@ -54,6 +54,7 @@ const navLogoWidth = Number.isFinite(props.logoWidth) ? props.logoWidth : 260;
 const navLogoHeight = Number.isFinite(props.logoHeight) ? props.logoHeight : 77;
 const safeLocale = String(props.currentLocale || 'lv').replace(/[^a-z0-9_-]/gi, '');
 const localeMenuId = `locale-popover-${safeLocale}`;
+const mobilePanelId = `mobile-panel-${safeLocale}`;
 const brandHref = getLocalizedPath(props.currentLocale);
 const contactHref = getLocalizedPath(props.currentLocale, '/contact');
 ---
@@ -62,8 +63,9 @@ const contactHref = getLocalizedPath(props.currentLocale, '/contact');
 	class="nav-shell js-nav-shell"
 	data-open-label={props.openMenuLabel}
 	data-close-label={props.closeMenuLabel}
+	data-mobile-panel-id={mobilePanelId}
 >
-	<div class="container nav-inner">
+	<div class="nav-inner">
 		<a class="brand brand-logo-link js-brand-link" href={brandHref} aria-label={props.brand}>
 			<span class="brand-logo-frame">
 				<img
@@ -95,8 +97,13 @@ const contactHref = getLocalizedPath(props.currentLocale, '/contact');
 		</nav>
 
 		<div class="nav-actions">
-			<a href={contactHref} class="btn btn-primary desktop-only">
-				{props.ctaLabel}
+			<a href={contactHref} class="btn-53 desktop-only">
+				<div class="original">{props.ctaLabel}</div>
+				<div class="letters">
+					{props.ctaLabel.split('').map((char) => (
+						<span>{char === ' ' ? '\u00A0' : char}</span>
+					))}
+				</div>
 			</a>
 			{
 				showLocaleLinks && selectedLocale && (
@@ -147,25 +154,26 @@ const contactHref = getLocalizedPath(props.currentLocale, '/contact');
 		</div>
 	</div>
 
-	<div class="mobile-panel js-mobile-panel">
-		<div class="container mobile-panel-inner">
-			{
-				availableLinks.map((link) => (
-					<a
-						href={link.href}
-						class="mobile-link js-section-link"
-						data-target-id={link.targetId}
-					>
-						{link.label}
-					</a>
-				))
-			}
-			<a href={contactHref} class="btn btn-primary js-mobile-cta">
-				{props.ctaLabel}
-			</a>
-		</div>
-	</div>
 </header>
+
+<div id={mobilePanelId} class="mobile-panel js-mobile-panel">
+	<div class="container mobile-panel-inner">
+		{
+			availableLinks.map((link) => (
+				<a
+					href={link.href}
+					class="mobile-link js-section-link"
+					data-target-id={link.targetId}
+				>
+					{link.label}
+				</a>
+			))
+		}
+		<a href={contactHref} class="btn btn-primary js-mobile-cta">
+			{props.ctaLabel}
+		</a>
+	</div>
+</div>
 
 <script is:inline type="module">
 	(() => {
@@ -209,13 +217,21 @@ const contactHref = getLocalizedPath(props.currentLocale, '/contact');
 			const abortController = new AbortController();
 			const { signal } = abortController;
 			const navToggle = shell.querySelector('.js-nav-toggle');
-			const mobilePanel = shell.querySelector('.js-mobile-panel');
+			const mobilePanelId = shell.dataset.mobilePanelId || '';
+			const mobilePanel = mobilePanelId
+				? document.getElementById(mobilePanelId)
+				: shell.querySelector('.js-mobile-panel');
 			const localeMenu = shell.querySelector('.js-locale-menu');
 			const localeTrigger = shell.querySelector('.js-locale-trigger');
 			const localePopover = shell.querySelector('.js-locale-popover');
 			const brandLink = shell.querySelector('.js-brand-link');
-			const mobileCta = shell.querySelector('.js-mobile-cta');
-			const sectionLinks = shell.querySelectorAll('.js-section-link');
+			const mobileCta =
+				(mobilePanel instanceof HTMLElement ? mobilePanel.querySelector('.js-mobile-cta') : null) ??
+				shell.querySelector('.js-mobile-cta');
+			const sectionLinks = [
+				...shell.querySelectorAll('.js-section-link'),
+				...(mobilePanel instanceof HTMLElement ? mobilePanel.querySelectorAll('.js-section-link') : []),
+			];
 			const localeOptions = shell.querySelectorAll('.js-locale-option');
 
 			let isOpen = false;
@@ -237,6 +253,7 @@ const contactHref = getLocalizedPath(props.currentLocale, '/contact');
 					navToggle.setAttribute('aria-label', nextOpen ? closeMenuLabel : openMenuLabel);
 					navToggle.textContent = nextOpen ? 'x' : '=';
 				}
+				queueUpdate();
 			};
 
 			const setLocaleOpen = (nextOpen) => {
@@ -267,6 +284,14 @@ const contactHref = getLocalizedPath(props.currentLocale, '/contact');
 				releasePoint = heroTravel === 0 ? heroTop + 20 : heroTop + heroTravel + 4;
 			};
 
+			const syncMobilePanelBounds = () => {
+				if (!(mobilePanel instanceof HTMLElement)) return;
+				const rect = shell.getBoundingClientRect();
+				mobilePanel.style.setProperty('--mobile-panel-top', `${Math.round(rect.bottom + 9)}px`);
+				mobilePanel.style.setProperty('--mobile-panel-left', `${Math.round(rect.left)}px`);
+				mobilePanel.style.setProperty('--mobile-panel-width', `${Math.round(rect.width)}px`);
+			};
+
 			const update = () => {
 				const nextViewportWidth = window.innerWidth || 0;
 				const nextViewportHeight = window.innerHeight || 0;
@@ -280,6 +305,7 @@ const contactHref = getLocalizedPath(props.currentLocale, '/contact');
 
 				const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
 				shell.classList.toggle('is-scrolled', scrollY >= releasePoint);
+				syncMobilePanelBounds();
 
 				if (viewportWidth > 980) {
 					setOpen(false);

@@ -19,6 +19,7 @@ function easeInOutCubic(value) {
 
 const MOBILE_TIMELINE_DAMPING = 0.26;
 const MOBILE_TIMELINE_TRAVEL_PADDING = 0.08;
+const DESKTOP_TIMELINE_DAMPING = 0.1;
 
 function createSeededRng(seed) {
 	let state = seed >>> 0;
@@ -94,6 +95,10 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 	const cardRefs = useRef([]);
 	const glowRefs = useRef([]);
 	const mobileTimelineRef = useRef({
+		value: 0,
+		primed: false,
+	});
+	const desktopTimelineRef = useRef({
 		value: 0,
 		primed: false,
 	});
@@ -224,20 +229,21 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 				const span = geometryRef.current.span;
 				const isTouchSingleColumn =
 					slots === 1 && window.matchMedia('(pointer: coarse)').matches;
-				const desktopProgress = clamp((scrollY - geometryRef.current.start) / span, 0, 1);
+				const desktopProgress = clamp((scrollY - (geometryRef.current.start - viewportHeight * 0.6)) / (viewportHeight * 0.9), 0, 1);
 				const mobileEntryProgress = clamp(
 					(viewportHeight - sectionTop) / Math.max(span + viewportHeight, 1),
 					0,
 					1,
 				);
-			const progress = isTouchSingleColumn ? mobileEntryProgress : desktopProgress;
+			const progress = isTouchSingleColumn ? mobileEntryProgress : easeInOutCubic(desktopProgress);
 			const revealVisibility = clamp((progress - 0.01) / 0.08, 0, 1);
 			containerNode.style.setProperty('--svcx-reveal-visibility', `${revealVisibility}`);
 
 			const offRight = frameWidth + cardWidth + 90;
 			const offLeft = -cardWidth - 120;
-			const travel = isTouchSingleColumn ? count + MOBILE_TIMELINE_TRAVEL_PADDING : count + 0.6;
-			const rawTimeline = clamp(progress * travel, 0, count);
+			const staggerStep = 0.4;
+			const travel = isTouchSingleColumn ? count + MOBILE_TIMELINE_TRAVEL_PADDING : (count - 1) * staggerStep + 1.5;
+			const rawTimeline = clamp(progress * travel, 0, travel);
 			let timeline = rawTimeline;
 
 			if (isTouchSingleColumn) {
@@ -249,17 +255,29 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 					mobileTimeline.value += (rawTimeline - mobileTimeline.value) * MOBILE_TIMELINE_DAMPING;
 				}
 
-				timeline = clamp(mobileTimeline.value, 0, count);
+				timeline = clamp(mobileTimeline.value, 0, travel);
+				const desktopTimeline = desktopTimelineRef.current;
+				desktopTimeline.value = 0;
+				desktopTimeline.primed = false;
 			} else {
 				const mobileTimeline = mobileTimelineRef.current;
 				mobileTimeline.value = 0;
 				mobileTimeline.primed = false;
+
+				const desktopTimeline = desktopTimelineRef.current;
+				if (!desktopTimeline.primed) {
+					desktopTimeline.value = rawTimeline;
+					desktopTimeline.primed = true;
+				} else {
+					desktopTimeline.value += (rawTimeline - desktopTimeline.value) * DESKTOP_TIMELINE_DAMPING;
+				}
+
+				timeline = clamp(desktopTimeline.value, 0, travel);
 			}
 
-			const state = Math.floor(timeline);
-			const alpha = state >= count ? 0 : easeOutCubic(timeline - state);
-			const from = getStatePositions({
-				arrivedCount: state,
+			// Compute final resting positions for all cards (no state machine — avoids snapping)
+			const finalPositions = getStatePositions({
+				arrivedCount: count,
 				count,
 				slots,
 				offLeft,
@@ -269,18 +287,12 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 				gap,
 				viewportWidth: frameWidth,
 			});
-			const to = getStatePositions({
-				arrivedCount: Math.min(state + 1, count),
-				count,
-				slots,
-				offLeft,
-				offRight,
-				sidePadding,
-				cardWidth,
-				gap,
-				viewportWidth: frameWidth,
+
+			// Each card flies directly from offRight to its final position with a staggered start
+			const positions = finalPositions.map((finalX, index) => {
+				const cardProgress = clamp((timeline - index * staggerStep) / 1.0, 0, 1);
+				return offRight + (finalX - offRight) * easeOutCubic(cardProgress);
 			});
-			const positions = from.map((x, index) => x + (to[index] - x) * alpha);
 			const glowSize = Math.round(cardWidth * 1.5);
 			const layout = layoutRef.current;
 			const cardWidthChanged = layout.cardWidth !== cardWidth;
@@ -361,8 +373,8 @@ export default function ServicesHorizontalIsland({ cards = [] }) {
 				const x = isTouchSingleColumn ? Math.round(rawX) : rawX;
 
 				if (glowNode) {
-					const enter = clamp(timeline - index, 0, 1);
-					const exit = clamp(timeline - (index + slots + 0.15), 0, 1);
+					const enter = clamp((timeline - index * staggerStep) / 1.0, 0, 1);
+					const exit = clamp((timeline - (index * staggerStep + slots * staggerStep + 0.15)) / 1.0, 0, 1);
 					const visibility = clamp(easeOutCubic(enter) * (1 - easeOutCubic(exit)), 0, 1);
 					const scale = 0.84 + visibility * 0.56;
 					const glowCenterX = x + cardWidth * 0.5;

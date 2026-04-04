@@ -12,12 +12,13 @@ const dictionary = getDictionary(lang);
 ---
 
 <section id="process" class="process-shell">
-	<div class="container process-header-wrap">
-		<div class="process-header">
-			<span class="eyebrow">{t('process.eyebrow')}</span>
-			<h2 class="section-title">{t('process.title')}</h2>
-			<p class="muted">{t('process.description')}</p>
-		</div>
+	<div class="process-upper">
+		<span class="process-badge">
+			<i class="process-badge-dot" aria-hidden="true"></i>
+			{t('process.eyebrow')}
+		</span>
+		<h2 class="process-hero-title">{dictionary.process.titleStart} <span class="process-title-highlight">{dictionary.process.titleHighlight}</span></h2>
+		<p class="process-hero-desc">{t('process.description')}</p>
 	</div>
 	<MountainProcessIsland client:visible steps={dictionary.process.steps} />
 	<div class="section-divider is-bottom" aria-hidden="true"></div>

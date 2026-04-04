@@ -5,6 +5,7 @@ import NavMenu from './NavMenu.astro';
 import NetworkSection from './NetworkSection.astro';
 import ProcessSection from './ProcessSection.astro';
 import ScrollProgress from './ScrollProgress.astro';
+import LaptopSection from './LaptopSection.astro';
 import ServicesSection from './ServicesSection.astro';
 import StatsSection from './StatsSection.astro';
 import TechSection from './TechSection.astro';
@@ -29,7 +30,7 @@ const navLogoSizes = '(max-width: 720px) 124px, 208px';
 
 const navLinks = [
 	{ label: t('navigation.links.process'), href: getLocalizedPath(lang), targetId: 'process' },
-	{ label: t('navigation.links.tech'), href: getLocalizedPath(lang), targetId: 'tech' },
+	{ label: t('navigation.links.tech'), href: getLocalizedPath(lang), targetId: 'services' },
 	{ label: t('navigation.links.network'), href: getLocalizedPath(lang), targetId: 'network' },
 ];
 
@@ -61,10 +62,11 @@ const localeLinks = [
 <main>
 	<IntroSection lang={lang} />
 	<ProcessSection lang={lang} />
+	<LaptopSection lang={lang} />
 	<ServicesSection lang={lang} />
-	<TechSection lang={lang} />
-	<StatsSection lang={lang} />
-	<NetworkSection lang={lang} />
 </main>
 
-<FooterSection lang={lang} />
+<div class="closing-stack" data-closing-locale={lang}>
+	<NetworkSection lang={lang} />
+	<FooterSection lang={lang} />
+</div>
